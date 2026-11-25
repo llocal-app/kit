@@ -1,0 +1,44 @@
+{
+  "plan": {
+    "shape": "static",
+    "why": "It is only pages and needs no server of its own, so it goes online as it is.",
+    "found": [
+      "A React website.",
+      "2 pages: / and /crew/{name}."
+    ],
+    "left": [
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "Nothing to convert.",
+        "detail": "llocal puts the pages online as they are, behind sign-in."
+      }
+    ]
+  },
+  "survey": {
+    "languages": [
+      "typescript"
+    ],
+    "frameworks": [
+      "react",
+      "react-router",
+      "vite"
+    ],
+    "pages": [
+      {
+        "path": "/",
+        "file": "src/main.tsx"
+      },
+      {
+        "path": "/crew/{name}",
+        "file": "src/main.tsx"
+      }
+    ],
+    "routes": [],
+    "data_stores": []
+  }
+}

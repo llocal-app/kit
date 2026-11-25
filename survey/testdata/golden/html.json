@@ -1,0 +1,62 @@
+{
+  "plan": {
+    "shape": "static",
+    "why": "It is only pages and needs no server of its own, so it goes online as it is.",
+    "found": [
+      "A single web page.",
+      "1 page: /.",
+      "Outside services: Google Maps (maps)."
+    ],
+    "left": [
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "Nothing to convert.",
+        "detail": "llocal puts the pages online as they are, behind sign-in."
+      }
+    ],
+    "outside": [
+      {
+        "text": "Google Maps (maps) stays connected.",
+        "detail": "No setting holds its key, so the key stays where it is in the code, if it has one. Visitors' browsers talk to it directly."
+      }
+    ],
+    "tell": [
+      {
+        "service": "Google Maps",
+        "value": "https://app.acme.llocal.app",
+        "where": "Google Cloud console \u003e APIs \u0026 Services \u003e Credentials \u003e the key \u003e Website restrictions: add the new address"
+      }
+    ]
+  },
+  "survey": {
+    "languages": [
+      "html"
+    ],
+    "frameworks": [
+      "html"
+    ],
+    "pages": [
+      {
+        "path": "/",
+        "file": "index.html"
+      }
+    ],
+    "routes": [],
+    "data_stores": [],
+    "services": [
+      {
+        "name": "google-maps",
+        "kind": "maps",
+        "browser": true,
+        "files": [
+          "index.html"
+        ]
+      }
+    ]
+  }
+}

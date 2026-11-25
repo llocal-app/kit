@@ -1,0 +1,15 @@
+modules = ["nodejs-24"]
+
+[agent]
+stack = "PNPM_WORKSPACE"
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+
+[[ports]]
+localPort = 8080
+externalPort = 80

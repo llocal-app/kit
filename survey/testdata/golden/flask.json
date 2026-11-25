@@ -1,0 +1,230 @@
+{
+  "plan": {
+    "shape": "kept",
+    "why": "Its server draws the pages itself, so rewriting it would mean rewriting the app. The server stays as it is and only the data moves.",
+    "found": [
+      "An app with its own Flask server.",
+      "6 server routes, like GET /, GET /api/orders, GET /login and 3 more.",
+      "A PostgreSQL database at pg-workorders.postgres.database.azure.com:5432, with 2 tables: user and work_orders.",
+      "Its own login: email and password, checked by the app itself, with people kept in user.",
+      "Outside services: SendGrid (email).",
+      "People upload files, kept by its server."
+    ],
+    "left": [
+      {
+        "kind": "login",
+        "text": "It has its own login (email and password, checked by the app itself), which goes: llocal signs people in with their work account."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in PostgreSQL (2 tables) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "uploads",
+        "text": "Files people upload are kept by its server, and move into the app's own storage on llocal."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The PostgreSQL data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The app's own login goes, and llocal signs people in.",
+        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in user stays, so everyone keeps their own records."
+      },
+      {
+        "text": "Its own Flask server stays.",
+        "detail": "Its server draws the pages itself, so rewriting it would mean rewriting the app. The server stays as it is and only the data moves."
+      },
+      {
+        "text": "Uploaded files move to llocal.",
+        "detail": "They are kept and backed up with the app."
+      }
+    ],
+    "outside": [
+      {
+        "text": "SendGrid (email) stays connected.",
+        "detail": "It needs SENDGRID_API_KEY."
+      }
+    ],
+    "needs": [
+      {
+        "text": "The value of SECRET_KEY. We found one in the upload; check it is the one to use.",
+        "setting": "SECRET_KEY"
+      },
+      {
+        "text": "Your SendGrid key, saved as SENDGRID_API_KEY. We found one in the upload; check it is the one to use.",
+        "setting": "SENDGRID_API_KEY"
+      },
+      {
+        "text": "So we can copy your data once: the full address of your PostgreSQL database (pg-workorders.postgres.database.azure.com:5432), like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+      }
+    ],
+    "settings": [
+      {
+        "name": "SECRET_KEY",
+        "kind": "secret"
+      },
+      {
+        "name": "SENDGRID_API_KEY",
+        "kind": "secret",
+        "service": "sendgrid"
+      }
+    ],
+    "dropped": [
+      "DATABASE_URL"
+    ],
+    "tell": [
+      {
+        "service": "Any of these services that only accepts calls from listed addresses",
+        "value": "203.0.113.7",
+        "where": "its list of allowed IP addresses"
+      }
+    ]
+  },
+  "survey": {
+    "languages": [
+      "python"
+    ],
+    "frameworks": [
+      "flask"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "flask",
+        "files": 1,
+        "bytes": 2564
+      }
+    ],
+    "server_pages": true,
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/",
+        "file": "app.py"
+      },
+      {
+        "method": "GET",
+        "path": "/api/orders",
+        "file": "app.py"
+      },
+      {
+        "method": "GET",
+        "path": "/login",
+        "file": "app.py"
+      },
+      {
+        "method": "POST",
+        "path": "/login",
+        "file": "app.py"
+      },
+      {
+        "method": "GET",
+        "path": "/logout",
+        "file": "app.py"
+      },
+      {
+        "method": "POST",
+        "path": "/orders/{order_id}/photo",
+        "file": "app.py"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "postgres",
+        "host": "pg-workorders.postgres.database.azure.com:5432",
+        "env": [
+          "DATABASE_URL"
+        ],
+        "files": [
+          "requirements.txt"
+        ],
+        "tables": [
+          {
+            "name": "user",
+            "columns": [
+              "id",
+              "email",
+              "password_hash"
+            ],
+            "file": "app.py"
+          },
+          {
+            "name": "work_orders",
+            "columns": [
+              "id",
+              "title",
+              "status",
+              "photo",
+              "owner_id"
+            ],
+            "file": "app.py"
+          }
+        ]
+      }
+    ],
+    "login": {
+      "provider": "flask-login",
+      "user_table": "user",
+      "files": [
+        "app.py",
+        "templates/login.html"
+      ]
+    },
+    "services": [
+      {
+        "name": "sendgrid",
+        "kind": "email",
+        "files": [
+          "app.py"
+        ]
+      }
+    ],
+    "env": [
+      {
+        "name": "DATABASE_URL",
+        "files": [
+          "app.py",
+          ".env"
+        ],
+        "set": true,
+        "service": "postgres"
+      },
+      {
+        "name": "SECRET_KEY",
+        "files": [
+          "app.py",
+          ".env"
+        ],
+        "set": true,
+        "looks": "secret_key"
+      },
+      {
+        "name": "SENDGRID_API_KEY",
+        "files": [
+          "app.py",
+          ".env"
+        ],
+        "set": true,
+        "service": "sendgrid"
+      }
+    ],
+    "uploads": [
+      {
+        "kind": "server",
+        "file": "app.py"
+      },
+      {
+        "kind": "form",
+        "file": "templates/index.html"
+      }
+    ]
+  }
+}

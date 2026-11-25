@@ -1,0 +1,10 @@
+{
+  "pages": [{ "path": "/" }, { "path": "/notes/{id}" }],
+  "routes": [
+    { "method": "GET", "path": "/api/notes" },
+    { "method": "POST", "path": "/api/notes" }
+  ],
+  "data_stores": [
+    { "kind": "postgres", "host": "abcd.supabase.co", "tables": [{ "name": "notes", "columns": ["id", "body"] }] }
+  ]
+}

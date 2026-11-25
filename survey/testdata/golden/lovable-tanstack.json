@@ -1,0 +1,368 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its TanStack Start server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own TanStack Start server, made with Lovable.",
+      "4 pages: /, /auth, /invoices and /invoices/{invoiceId}.",
+      "1 server route, like POST /api/public/stripe-webhook.",
+      "1 server function: sendInvoice.",
+      "A Supabase database at qrstuvwxyzabcdefghij.supabase.co, with 2 tables: customers and invoices. Visitors' browsers talk to it directly.",
+      "Its own login: Lovable Cloud's sign-in, with people kept in auth.users.",
+      "Outside services: Stripe (payments) and Lovable AI (AI).",
+      "Stripe sends it events at /api/public/stripe-webhook."
+    ],
+    "left": [
+      {
+        "kind": "login",
+        "text": "It has its own login (Lovable Cloud's sign-in), which goes: llocal signs people in with their work account."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in Supabase (2 tables) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "browser",
+        "text": "Visitors' browsers talk to Supabase directly. Those calls go through the app's own server instead."
+      },
+      {
+        "kind": "server",
+        "text": "Its TanStack Start server code (1 route in 4 files, 2 KB) is rewritten in Go on llocal's kit, and its pages are built once into plain files."
+      },
+      {
+        "kind": "functions",
+        "text": "Its 1 server function (sendInvoice) moves into the app's own server."
+      },
+      {
+        "kind": "webhooks",
+        "text": "Stripe sends it events at /api/public/stripe-webhook, which is set apart from sign-in so they still get through."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The Supabase data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The pages stop talking to the database directly and ask the app's own server instead.",
+        "detail": "Today each visitor's browser reaches the database with a key anyone can read in the pages, and only the database's own rules stand in the way. On llocal only people who have signed in reach the data, and only through the server, which checks the same rules."
+      },
+      {
+        "text": "The app's own login goes, and llocal signs people in.",
+        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in auth.users stays, so everyone keeps their own records."
+      },
+      {
+        "text": "The pages are built once into plain files, and its server routes and functions are rewritten in Go, at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ],
+    "outside": [
+      {
+        "text": "Stripe (payments) stays connected.",
+        "detail": "It needs STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET."
+      },
+      {
+        "text": "Lovable AI (AI) stays connected.",
+        "detail": "It needs LOVABLE_API_KEY."
+      }
+    ],
+    "needs": [
+      {
+        "text": "Your Lovable AI key, saved as LOVABLE_API_KEY.",
+        "setting": "LOVABLE_API_KEY"
+      },
+      {
+        "text": "Your Stripe key, saved as STRIPE_SECRET_KEY.",
+        "setting": "STRIPE_SECRET_KEY"
+      },
+      {
+        "text": "Your Stripe key, saved as STRIPE_WEBHOOK_SECRET.",
+        "setting": "STRIPE_WEBHOOK_SECRET"
+      },
+      {
+        "text": "So we can copy your data once: a key that can read every table of your Supabase project (qrstuvwxyzabcdefghij.supabase.co). The service_role key (Supabase \u003e Project Settings \u003e API Keys) or the database password will do. It is used for the copy, then thrown away."
+      }
+    ],
+    "settings": [
+      {
+        "name": "LOVABLE_API_KEY",
+        "kind": "secret",
+        "service": "lovable-ai"
+      },
+      {
+        "name": "STRIPE_SECRET_KEY",
+        "kind": "secret",
+        "service": "stripe"
+      },
+      {
+        "name": "STRIPE_WEBHOOK_SECRET",
+        "kind": "secret",
+        "service": "stripe"
+      }
+    ],
+    "dropped": [
+      "LOVABLE_DB_MIGRATION_URL",
+      "SUPABASE_PROJECT_ID",
+      "SUPABASE_PUBLISHABLE_KEY",
+      "SUPABASE_SECRET_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_URL",
+      "VITE_SUPABASE_PROJECT_ID",
+      "VITE_SUPABASE_PUBLISHABLE_KEY",
+      "VITE_SUPABASE_URL"
+    ],
+    "tell": [
+      {
+        "service": "Stripe",
+        "value": "https://app.acme.llocal.app/api/public/stripe-webhook",
+        "where": "Stripe dashboard \u003e Developers \u003e Webhooks: change the endpoint's address"
+      },
+      {
+        "service": "Any of these services that only accepts calls from listed addresses",
+        "value": "203.0.113.7",
+        "where": "its list of allowed IP addresses"
+      }
+    ],
+    "if_not_converted": "Until it is converted, the Supabase database is reached straight from each visitor's browser, and llocal's sign-in does not stand in front of it: anyone who has its address and the key in the pages can try to read it."
+  },
+  "survey": {
+    "languages": [
+      "typescript"
+    ],
+    "frameworks": [
+      "react",
+      "tanstack-router",
+      "tanstack-start",
+      "vite"
+    ],
+    "builder": "lovable",
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "tanstack-start",
+        "files": 4,
+        "bytes": 2086
+      }
+    ],
+    "pages": [
+      {
+        "path": "/",
+        "file": "src/routes/index.tsx"
+      },
+      {
+        "path": "/auth",
+        "file": "src/routes/auth.tsx"
+      },
+      {
+        "path": "/invoices",
+        "file": "src/routes/_authenticated/invoices.tsx"
+      },
+      {
+        "path": "/invoices/{invoiceId}",
+        "file": "src/routes/_authenticated/invoices.$invoiceId.tsx"
+      }
+    ],
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/api/public/stripe-webhook",
+        "file": "src/routes/api/public/stripe-webhook.ts"
+      }
+    ],
+    "functions": [
+      {
+        "name": "sendInvoice",
+        "kind": "server-function",
+        "file": "src/lib/invoices.functions.ts"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "supabase",
+        "host": "qrstuvwxyzabcdefghij.supabase.co",
+        "browser": true,
+        "env": [
+          "LOVABLE_DB_MIGRATION_URL",
+          "SUPABASE_PROJECT_ID",
+          "SUPABASE_PUBLISHABLE_KEY",
+          "SUPABASE_SECRET_KEY",
+          "SUPABASE_SERVICE_ROLE_KEY",
+          "SUPABASE_URL",
+          "VITE_SUPABASE_PROJECT_ID",
+          "VITE_SUPABASE_PUBLISHABLE_KEY",
+          "VITE_SUPABASE_URL"
+        ],
+        "files": [
+          "src/integrations/supabase/auth-middleware.ts",
+          "src/integrations/supabase/client.server.ts",
+          "src/integrations/supabase/client.ts"
+        ],
+        "tables": [
+          {
+            "name": "customers",
+            "columns": [
+              "id",
+              "owner_id",
+              "name",
+              "email"
+            ],
+            "file": "drizzle/migrations/0000_invoices.sql"
+          },
+          {
+            "name": "invoices",
+            "columns": [
+              "id",
+              "customer_id",
+              "amount_cents",
+              "status",
+              "paid_at"
+            ],
+            "file": "drizzle/migrations/0000_invoices.sql"
+          }
+        ]
+      }
+    ],
+    "login": {
+      "provider": "lovable",
+      "user_table": "auth.users",
+      "files": [
+        "src/routes/auth.tsx"
+      ]
+    },
+    "services": [
+      {
+        "name": "stripe",
+        "kind": "payments",
+        "files": [
+          "src/routes/api/public/stripe-webhook.ts"
+        ]
+      },
+      {
+        "name": "lovable-ai",
+        "kind": "AI",
+        "files": [
+          "src/lib/invoices.functions.ts"
+        ]
+      }
+    ],
+    "env": [
+      {
+        "name": "LOVABLE_API_KEY",
+        "files": [
+          "src/lib/invoices.functions.ts"
+        ],
+        "service": "lovable-ai"
+      },
+      {
+        "name": "LOVABLE_DB_MIGRATION_URL",
+        "files": [
+          "drizzle.config.ts"
+        ],
+        "service": "supabase"
+      },
+      {
+        "name": "STRIPE_SECRET_KEY",
+        "files": [
+          "src/routes/api/public/stripe-webhook.ts"
+        ],
+        "looks": "secret_key",
+        "service": "stripe"
+      },
+      {
+        "name": "STRIPE_WEBHOOK_SECRET",
+        "files": [
+          "src/routes/api/public/stripe-webhook.ts"
+        ],
+        "looks": "secret_key",
+        "service": "stripe"
+      },
+      {
+        "name": "SUPABASE_PROJECT_ID",
+        "files": [
+          ".env"
+        ],
+        "set": true,
+        "service": "supabase"
+      },
+      {
+        "name": "SUPABASE_PUBLISHABLE_KEY",
+        "files": [
+          "src/integrations/supabase/auth-middleware.ts",
+          "src/integrations/supabase/client.ts",
+          ".env"
+        ],
+        "set": true,
+        "looks": "publishable",
+        "service": "supabase"
+      },
+      {
+        "name": "SUPABASE_SECRET_KEY",
+        "files": [
+          "src/integrations/supabase/client.server.ts"
+        ],
+        "looks": "secret_key",
+        "service": "supabase"
+      },
+      {
+        "name": "SUPABASE_SERVICE_ROLE_KEY",
+        "files": [
+          "src/integrations/supabase/client.server.ts"
+        ],
+        "looks": "service_role",
+        "service": "supabase"
+      },
+      {
+        "name": "SUPABASE_URL",
+        "files": [
+          "src/integrations/supabase/auth-middleware.ts",
+          "src/integrations/supabase/client.server.ts",
+          "src/integrations/supabase/client.ts",
+          ".env"
+        ],
+        "set": true,
+        "service": "supabase"
+      },
+      {
+        "name": "VITE_SUPABASE_PROJECT_ID",
+        "files": [
+          ".env"
+        ],
+        "browser": true,
+        "set": true,
+        "service": "supabase"
+      },
+      {
+        "name": "VITE_SUPABASE_PUBLISHABLE_KEY",
+        "files": [
+          "src/integrations/supabase/client.ts",
+          ".env"
+        ],
+        "browser": true,
+        "set": true,
+        "looks": "publishable",
+        "service": "supabase"
+      },
+      {
+        "name": "VITE_SUPABASE_URL",
+        "files": [
+          "src/integrations/supabase/client.ts",
+          ".env"
+        ],
+        "browser": true,
+        "set": true,
+        "service": "supabase"
+      }
+    ],
+    "webhooks": [
+      {
+        "path": "/api/public/stripe-webhook",
+        "service": "stripe",
+        "file": "src/routes/api/public/stripe-webhook.ts"
+      }
+    ]
+  }
+}

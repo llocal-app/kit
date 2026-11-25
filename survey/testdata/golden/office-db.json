@@ -1,0 +1,119 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its Flask server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own Flask server.",
+      "2 server routes, like GET /api/tickets and POST /api/tickets/{ticket_id}/print.",
+      "A SQL Server database at sqlserver01.acme.local.",
+      "Addresses on a private network or this computer: 192.168.1.40 (in app.py) and sqlserver01.acme.local (in app.py)."
+    ],
+    "left": [
+      {
+        "kind": "private",
+        "text": "Its SQL Server database at sqlserver01.acme.local is on a private network, which llocal can't reach to copy the data."
+      },
+      {
+        "kind": "private",
+        "text": "It calls 192.168.1.40 (in app.py) on a private network, which llocal can't reach."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in SQL Server and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "server",
+        "text": "Its Flask server (2 routes in 1 file, 1 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The SQL Server data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The Flask server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ],
+    "blockers": [
+      {
+        "case": "private_database",
+        "title": "Its database is on a private network",
+        "detail": "The SQL Server database at sqlserver01.acme.local can only be reached from inside your network, so llocal cannot copy the data from it.",
+        "way_out": "Export the data to a file (a backup, or a spreadsheet per table) and add it to the upload. Or ask whoever runs your network to let llocal's address, 203.0.113.7, reach the database once, for the copy."
+      }
+    ],
+    "warnings": [
+      "It calls addresses on a private network that llocal cannot reach: 192.168.1.40 (in app.py). Those parts will not work on llocal."
+    ],
+    "dropped": [
+      "DISPATCH_DB_PASSWORD"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "python"
+    ],
+    "frameworks": [
+      "flask"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "flask",
+        "files": 1,
+        "bytes": 813
+      }
+    ],
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/tickets",
+        "file": "app.py"
+      },
+      {
+        "method": "POST",
+        "path": "/api/tickets/{ticket_id}/print",
+        "file": "app.py"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "mssql",
+        "host": "sqlserver01.acme.local",
+        "env": [
+          "DISPATCH_DB_PASSWORD"
+        ],
+        "files": [
+          "app.py"
+        ],
+        "tables": []
+      }
+    ],
+    "env": [
+      {
+        "name": "DISPATCH_DB_PASSWORD",
+        "files": [
+          "app.py"
+        ],
+        "service": "mssql"
+      }
+    ],
+    "private": [
+      {
+        "address": "192.168.1.40",
+        "file": "app.py"
+      },
+      {
+        "address": "sqlserver01.acme.local",
+        "file": "app.py"
+      }
+    ]
+  }
+}

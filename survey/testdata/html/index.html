@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Delivery zone calculator</title>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaFAKEFAKEFAKEFAKE&libraries=places"></script>
+</head>
+<body>
+  <h1>Delivery zone</h1>
+  <input id="address" placeholder="Customer address">
+  <p id="fee"></p>
+  <div id="map" style="height: 320px"></div>
+  <script>
+    const depot = { lat: 41.3114, lng: -105.5911 };
+    const map = new google.maps.Map(document.getElementById("map"), { center: depot, zoom: 11 });
+    const box = new google.maps.places.Autocomplete(document.getElementById("address"));
+    box.addListener("place_changed", () => {
+      const p = box.getPlace().geometry.location;
+      const km = google.maps.geometry ? 0 : Math.hypot(p.lat() - depot.lat, p.lng() - depot.lng) * 111;
+      document.getElementById("fee").textContent = km < 10 ? "$15" : "$" + (15 + Math.round(km - 10) * 2);
+      new google.maps.Marker({ position: p, map });
+    });
+  </script>
+</body>
+</html>

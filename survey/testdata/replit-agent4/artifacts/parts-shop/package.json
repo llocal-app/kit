@@ -1,0 +1,19 @@
+{
+  "name": "@workspace/parts-shop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@clerk/react": "^5.30.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "wouter": "^3.7.0"
+  },
+  "devDependencies": {
+    "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
+    "vite": "^7.0.0"
+  }
+}

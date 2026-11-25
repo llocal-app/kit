@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notes</title>
+</head>
+<body>
+  <p id="who"></p>
+  <form id="add"><input name="body" required> <button>Add</button></form>
+  <ul id="notes"></ul>
+  <p><a href="/_llocal/logout">Sign out</a></p>
+  <script>
+    const list = document.getElementById('notes');
+    async function load() {
+      const notes = await (await fetch('/api/notes')).json();
+      list.replaceChildren(...notes.map(n => Object.assign(document.createElement('li'), { textContent: `${n.body} (${n.by})` })));
+    }
+    document.getElementById('add').onsubmit = async e => {
+      e.preventDefault();
+      await fetch('/api/notes', { method: 'POST', body: JSON.stringify({ body: e.target.body.value }) });
+      e.target.reset();
+      load();
+    };
+    fetch('/_llocal/me').then(r => r.ok ? r.json() : null).then(me => {
+      if (me) document.getElementById('who').textContent = `Signed in as ${me.name}`;
+    });
+    load();
+  </script>
+</body>
+</html>

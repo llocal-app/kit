@@ -1,0 +1,6 @@
+kind = "web"
+previewPath = "/"
+
+[serve]
+serve = "static"
+publicDir = "artifacts/parts-shop/dist/public"

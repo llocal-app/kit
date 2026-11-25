@@ -1,0 +1,11 @@
+<!doctype html>
+<title>Work orders</title>
+<ul>
+{% for o in orders %}
+  <li>{{ o.title }} ({{ o.status }})
+    <form method="post" action="/orders/{{ o.id }}/photo" enctype="multipart/form-data">
+      <input type="file" name="photo"><button>Add photo</button>
+    </form>
+  </li>
+{% endfor %}
+</ul>

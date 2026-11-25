@@ -1,0 +1,167 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its Express server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own Express server and a React front end, made with Replit.",
+      "2 pages: / and /orders/{id}.",
+      "3 server routes, like GET /api/healthz, GET /api/orders and POST /api/orders.",
+      "A PostgreSQL database, with 2 tables: customers and orders.",
+      "Its own login: Clerk."
+    ],
+    "left": [
+      {
+        "kind": "login",
+        "text": "It has its own login (Clerk), which goes: llocal signs people in with their work account."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in PostgreSQL (2 tables) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "server",
+        "text": "Its Express server (3 routes in 2 files, 1 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The PostgreSQL data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The app's own login goes, and llocal signs people in.",
+        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it."
+      },
+      {
+        "text": "The Express server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ],
+    "needs": [
+      {
+        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+      }
+    ],
+    "dropped": [
+      "DATABASE_URL",
+      "PORT",
+      "VITE_CLERK_PUBLISHABLE_KEY"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "typescript"
+    ],
+    "frameworks": [
+      "express",
+      "react",
+      "vite"
+    ],
+    "builder": "replit",
+    "servers": [
+      {
+        "dir": "artifacts/api-server",
+        "framework": "express",
+        "files": 2,
+        "bytes": 857
+      }
+    ],
+    "pages": [
+      {
+        "path": "/",
+        "file": "artifacts/parts-shop/src/App.tsx"
+      },
+      {
+        "path": "/orders/{id}",
+        "file": "artifacts/parts-shop/src/App.tsx"
+      }
+    ],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/healthz",
+        "file": "artifacts/api-server/src/routes/index.ts"
+      },
+      {
+        "method": "GET",
+        "path": "/api/orders",
+        "file": "artifacts/api-server/src/routes/index.ts"
+      },
+      {
+        "method": "POST",
+        "path": "/api/orders",
+        "file": "artifacts/api-server/src/routes/index.ts"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "postgres",
+        "env": [
+          "DATABASE_URL"
+        ],
+        "files": [
+          "lib/db/src/index.ts"
+        ],
+        "tables": [
+          {
+            "name": "customers",
+            "columns": [
+              "id",
+              "name",
+              "phone"
+            ],
+            "file": "lib/db/src/schema.ts"
+          },
+          {
+            "name": "orders",
+            "columns": [
+              "id",
+              "customer_id",
+              "part",
+              "created_by",
+              "created_at"
+            ],
+            "file": "lib/db/src/schema.ts"
+          }
+        ]
+      }
+    ],
+    "login": {
+      "provider": "clerk",
+      "files": [
+        "artifacts/api-server/src/index.ts",
+        "artifacts/api-server/src/routes/index.ts",
+        "artifacts/parts-shop/src/App.tsx"
+      ]
+    },
+    "env": [
+      {
+        "name": "DATABASE_URL",
+        "files": [
+          "lib/db/src/index.ts"
+        ],
+        "service": "postgres"
+      },
+      {
+        "name": "PORT",
+        "files": [
+          "artifacts/api-server/src/index.ts"
+        ],
+        "service": "platform"
+      },
+      {
+        "name": "VITE_CLERK_PUBLISHABLE_KEY",
+        "files": [
+          "artifacts/parts-shop/src/App.tsx"
+        ],
+        "browser": true,
+        "looks": "publishable",
+        "service": "login"
+      }
+    ]
+  }
+}

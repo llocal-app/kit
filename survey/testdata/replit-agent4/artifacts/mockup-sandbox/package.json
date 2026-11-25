@@ -1,0 +1,10 @@
+{
+  "name": "@workspace/mockup-sandbox",
+  "private": true,
+  "dependencies": {
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}

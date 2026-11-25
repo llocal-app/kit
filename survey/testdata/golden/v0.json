@@ -1,0 +1,306 @@
+{
+  "plan": {
+    "shape": "kept",
+    "why": "Its server draws the pages itself, so rewriting it would mean rewriting the app. The server stays as it is and only the data moves.",
+    "found": [
+      "An app with its own Next.js server, made with v0.",
+      "3 pages: /, /dashboard and /sign-in.",
+      "4 server routes, like /api/auth/{all}, POST /api/chat, GET /api/cron/reminders and 1 more.",
+      "1 server action: createBooking.",
+      "A PostgreSQL database, with 3 tables: user, session and bookings.",
+      "Its own login: Better Auth, with people kept in user.",
+      "Outside services: Stripe (payments) and Vercel AI Gateway (AI).",
+      "1 timed job, in vercel.json.",
+      "Stripe sends it events at /api/stripe/webhook."
+    ],
+    "left": [
+      {
+        "kind": "login",
+        "text": "It has its own login (Better Auth), which goes: llocal signs people in with their work account."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in PostgreSQL (3 tables) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "schedules",
+        "text": "1 timed job moves to llocal's timetable: apps sleep when nobody uses them, which would stop a timer inside the app."
+      },
+      {
+        "kind": "webhooks",
+        "text": "Stripe sends it events at /api/stripe/webhook, which is set apart from sign-in so they still get through."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The PostgreSQL data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The app's own login goes, and llocal signs people in.",
+        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in user stays, so everyone keeps their own records."
+      },
+      {
+        "text": "Its own Next.js server stays.",
+        "detail": "Its server draws the pages itself, so rewriting it would mean rewriting the app. The server stays as it is and only the data moves."
+      },
+      {
+        "text": "Timed jobs run on llocal's timetable instead of a timer inside the app.",
+        "detail": "Apps sleep when nobody is using them, which would stop a timer."
+      }
+    ],
+    "outside": [
+      {
+        "text": "Stripe (payments) stays connected.",
+        "detail": "It needs STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET."
+      },
+      {
+        "text": "Vercel AI Gateway (AI) stays connected.",
+        "detail": "It needs AI_GATEWAY_API_KEY."
+      }
+    ],
+    "needs": [
+      {
+        "text": "Your Stripe key, saved as STRIPE_SECRET_KEY.",
+        "setting": "STRIPE_SECRET_KEY"
+      },
+      {
+        "text": "Your Stripe key, saved as STRIPE_WEBHOOK_SECRET.",
+        "setting": "STRIPE_WEBHOOK_SECRET"
+      },
+      {
+        "text": "Your Vercel AI Gateway key, saved as AI_GATEWAY_API_KEY.",
+        "setting": "AI_GATEWAY_API_KEY"
+      },
+      {
+        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+      }
+    ],
+    "settings": [
+      {
+        "name": "STRIPE_SECRET_KEY",
+        "kind": "secret",
+        "service": "stripe"
+      },
+      {
+        "name": "STRIPE_WEBHOOK_SECRET",
+        "kind": "secret",
+        "service": "stripe"
+      },
+      {
+        "name": "AI_GATEWAY_API_KEY",
+        "kind": "secret",
+        "service": "ai-gateway"
+      }
+    ],
+    "dropped": [
+      "BETTER_AUTH_URL",
+      "CRON_SECRET",
+      "DATABASE_URL"
+    ],
+    "tell": [
+      {
+        "service": "Stripe",
+        "value": "https://app.acme.llocal.app/api/stripe/webhook",
+        "where": "Stripe dashboard \u003e Developers \u003e Webhooks: change the endpoint's address"
+      },
+      {
+        "service": "Any of these services that only accepts calls from listed addresses",
+        "value": "203.0.113.7",
+        "where": "its list of allowed IP addresses"
+      }
+    ]
+  },
+  "survey": {
+    "languages": [
+      "typescript",
+      "javascript"
+    ],
+    "frameworks": [
+      "nextjs",
+      "react"
+    ],
+    "builder": "v0",
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "nextjs",
+        "files": 12,
+        "bytes": 4561
+      }
+    ],
+    "server_pages": true,
+    "pages": [
+      {
+        "path": "/",
+        "file": "app/page.tsx"
+      },
+      {
+        "path": "/dashboard",
+        "file": "app/dashboard/page.tsx"
+      },
+      {
+        "path": "/sign-in",
+        "file": "app/sign-in/page.tsx"
+      }
+    ],
+    "routes": [
+      {
+        "path": "/api/auth/{all}",
+        "file": "app/api/auth/[...all]/route.ts"
+      },
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "file": "app/api/chat/route.ts"
+      },
+      {
+        "method": "GET",
+        "path": "/api/cron/reminders",
+        "file": "app/api/cron/reminders/route.ts"
+      },
+      {
+        "method": "POST",
+        "path": "/api/stripe/webhook",
+        "file": "app/api/stripe/webhook/route.ts"
+      }
+    ],
+    "functions": [
+      {
+        "name": "createBooking",
+        "kind": "server-action",
+        "file": "app/actions.ts"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "postgres",
+        "env": [
+          "DATABASE_URL"
+        ],
+        "files": [
+          "lib/db/index.ts"
+        ],
+        "tables": [
+          {
+            "name": "user",
+            "columns": [
+              "id",
+              "name",
+              "email",
+              "created_at"
+            ],
+            "file": "lib/db/schema.ts"
+          },
+          {
+            "name": "session",
+            "columns": [
+              "id",
+              "token",
+              "user_id",
+              "expires_at"
+            ],
+            "file": "lib/db/schema.ts"
+          },
+          {
+            "name": "bookings",
+            "columns": [
+              "id",
+              "user_id",
+              "customer",
+              "starts_at",
+              "seats",
+              "paid"
+            ],
+            "file": "lib/db/schema.ts"
+          }
+        ]
+      }
+    ],
+    "login": {
+      "provider": "better-auth",
+      "user_table": "user",
+      "files": [
+        "app/api/auth/[...all]/route.ts",
+        "app/sign-in/page.tsx",
+        "lib/auth-client.ts",
+        "lib/auth.ts",
+        "proxy.ts"
+      ]
+    },
+    "services": [
+      {
+        "name": "stripe",
+        "kind": "payments",
+        "files": [
+          "app/api/stripe/webhook/route.ts"
+        ]
+      },
+      {
+        "name": "ai-gateway",
+        "kind": "AI",
+        "files": [
+          "app/api/chat/route.ts"
+        ]
+      }
+    ],
+    "env": [
+      {
+        "name": "BETTER_AUTH_URL",
+        "files": [
+          "lib/auth.ts"
+        ],
+        "service": "login"
+      },
+      {
+        "name": "CRON_SECRET",
+        "files": [
+          "app/api/cron/reminders/route.ts"
+        ],
+        "looks": "secret_key",
+        "service": "platform"
+      },
+      {
+        "name": "DATABASE_URL",
+        "files": [
+          "lib/db/index.ts"
+        ],
+        "service": "postgres"
+      },
+      {
+        "name": "STRIPE_SECRET_KEY",
+        "files": [
+          "app/api/stripe/webhook/route.ts"
+        ],
+        "looks": "secret_key",
+        "service": "stripe"
+      },
+      {
+        "name": "STRIPE_WEBHOOK_SECRET",
+        "files": [
+          "app/api/stripe/webhook/route.ts"
+        ],
+        "looks": "secret_key",
+        "service": "stripe"
+      }
+    ],
+    "schedules": [
+      {
+        "file": "vercel.json",
+        "cron": "0 8 * * *",
+        "path": "/api/cron/reminders"
+      }
+    ],
+    "webhooks": [
+      {
+        "path": "/api/stripe/webhook",
+        "service": "stripe",
+        "file": "app/api/stripe/webhook/route.ts"
+      }
+    ]
+  }
+}

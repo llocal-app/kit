@@ -1,0 +1,11 @@
+# gitleaks' own rules, less the survey's test keys: the survey is tested on projects that
+# hold keys, so its fixtures carry fake ones. Each says so: the Supabase keys end in
+# fake-signature-for-tests, and the others say FAKE.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "the survey's fake test keys"
+condition = "AND"
+paths = ['''(^|/)survey/''']
+regexes = ['''fake-signature-for-tests''', '''FAKE''']

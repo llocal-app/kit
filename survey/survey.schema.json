@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://llocal.app/survey.schema.json",
+  "title": "survey.json",
+  "description": "What a project is, as llocal's survey reads it: framework, pages, server routes, data, login, outside services and settings. llocal-survey writes it by rules; the builder's agent may fill the same file. Never put a secret's value in it: only names.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["languages", "frameworks", "pages", "routes", "data_stores"],
+  "$defs": {
+    "files": { "type": "array", "items": { "type": "string" }, "description": "Paths inside the project, with / between folders." },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "method": { "enum": ["", "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"], "description": "Empty or left out means any method." },
+        "path": { "type": "string", "pattern": "^/", "description": "Path parameters are written {name}, like /api/orders/{id}." },
+        "file": { "type": "string" }
+      }
+    }
+  },
+  "properties": {
+    "languages": { "type": "array", "items": { "type": "string" }, "description": "Like typescript, javascript, python or html, most used first." },
+    "frameworks": { "type": "array", "items": { "type": "string" }, "description": "Like vite, react, nextjs, tanstack-start, express, flask, fastapi, streamlit, or html for plain pages." },
+    "builder": { "type": "string", "description": "The tool that made the project: lovable, bolt, v0 or replit." },
+    "recipe_shape": { "enum": ["standard", "kept", "static"], "description": "The shape named by a valid llocal.json at the project's root: the app already fits." },
+    "servers": {
+      "type": "array",
+      "description": "Programs in the project that listen for requests. More than one means more than one app.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dir", "framework"],
+        "properties": {
+          "dir": { "type": "string", "description": ". for the project's root." },
+          "framework": { "type": "string" },
+          "files": { "type": "integer", "description": "How many code files in its folder run on the server: not pages, tests, config or another server's folder." },
+          "bytes": { "type": "integer", "description": "The size of those files." }
+        }
+      }
+    },
+    "server_pages": { "type": "boolean", "description": "The server draws the pages itself (templates, Streamlit, Next.js server rendering or server actions)." },
+    "pages": { "type": "array", "items": { "$ref": "#/$defs/route" }, "description": "Pages people open in the browser." },
+    "routes": { "type": "array", "items": { "$ref": "#/$defs/route" }, "description": "Server routes: the app's own API." },
+    "functions": {
+      "type": "array",
+      "description": "Server code called by name rather than by path.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "kind", "file"],
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "enum": ["supabase-edge", "netlify", "server-action", "server-function"] },
+          "file": { "type": "string" }
+        }
+      }
+    },
+    "data_stores": {
+      "type": "array",
+      "description": "Databases the app uses.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "tables"],
+        "properties": {
+          "kind": { "enum": ["supabase", "postgres", "mysql", "mssql", "mongodb", "firebase", "redis", "sqlite"] },
+          "host": { "type": "string", "description": "The database's address exactly as it appears in the code, like abcd.supabase.co or localhost:5432. The checker fails a converted app that still mentions it." },
+          "browser": { "type": "boolean", "description": "Visitors' browsers talk to it directly." },
+          "env": { "type": "array", "items": { "type": "string" }, "description": "Environment variables that belong to it." },
+          "files": { "$ref": "#/$defs/files" },
+          "tables": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name"],
+              "properties": {
+                "name": { "type": "string" },
+                "columns": { "type": "array", "items": { "type": "string" } },
+                "file": { "type": "string", "description": "Where the table is defined, or first used." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "login": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "files"],
+      "description": "The app's own login, which llocal's sign-in replaces.",
+      "properties": {
+        "provider": { "enum": ["supabase", "replit", "lovable", "clerk", "auth0", "better-auth", "nextauth", "firebase", "netlify-identity", "passport", "flask-login", "fastapi", "streamlit", "own"] },
+        "user_table": { "type": "string", "description": "Where the people are kept, like auth.users or users." },
+        "files": { "$ref": "#/$defs/files" }
+      }
+    },
+    "services": {
+      "type": "array",
+      "description": "Outside services that are not the database: payments, AI, accounting, text messages, email and the like.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "kind", "files"],
+        "properties": {
+          "name": { "type": "string", "description": "Like stripe, openai, quickbooks or twilio." },
+          "kind": { "type": "string", "description": "In plain words, like payments, AI, accounting, text messages or email." },
+          "browser": { "type": "boolean", "description": "Visitors' browsers talk to it directly." },
+          "files": { "$ref": "#/$defs/files" }
+        }
+      }
+    },
+    "env": {
+      "type": "array",
+      "description": "Environment variables the code reads or a .env file sets. Names only, never values.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "files"],
+        "properties": {
+          "name": { "type": "string" },
+          "files": { "$ref": "#/$defs/files" },
+          "browser": { "type": "boolean", "description": "Its name has a public prefix (VITE_, NEXT_PUBLIC_, PUBLIC_, REACT_APP_), so a front-end build copies its value into the pages." },
+          "set": { "type": "boolean", "description": "A value for it is in the project, in a .env file." },
+          "looks": { "enum": ["", "service_role", "secret_key", "private_key", "publishable"], "description": "What its value, or failing that its name, looks like." },
+          "service": { "type": "string", "description": "What it belongs to: a service or data store name, login, or platform for names the old host or llocal sets." }
+        }
+      }
+    },
+    "keys": {
+      "type": "array",
+      "description": "Keys written into the code itself. The value is never recorded.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "looks"],
+        "properties": {
+          "file": { "type": "string" },
+          "looks": { "enum": ["service_role", "secret_key", "private_key", "publishable"] },
+          "browser": { "type": "boolean" }
+        }
+      }
+    },
+    "schedules": {
+      "type": "array",
+      "description": "Timed work: a timer or cron library in the code, or a host's cron entry.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file"],
+        "properties": {
+          "file": { "type": "string" },
+          "cron": { "type": "string" },
+          "path": { "type": "string" }
+        }
+      }
+    },
+    "webhooks": {
+      "type": "array",
+      "description": "Routes or functions an outside service calls.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file"],
+        "properties": {
+          "path": { "type": "string" },
+          "service": { "type": "string" },
+          "file": { "type": "string" }
+        }
+      }
+    },
+    "uploads": {
+      "type": "array",
+      "description": "Places people upload files, and where the files go.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "file"],
+        "properties": {
+          "kind": { "enum": ["server", "form", "supabase-storage", "firebase-storage", "s3", "vercel-blob", "replit-storage"] },
+          "file": { "type": "string" }
+        }
+      }
+    },
+    "private": {
+      "type": "array",
+      "description": "Addresses on a private network, or on localhost in code that runs in the browser.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["address", "file"],
+        "properties": {
+          "address": { "type": "string" },
+          "file": { "type": "string" }
+        }
+      }
+    },
+    "containers": {
+      "type": "array",
+      "description": "Dockerfiles and compose files.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file"],
+        "properties": {
+          "file": { "type": "string" },
+          "installs": { "type": "array", "items": { "type": "string" }, "description": "System packages a Dockerfile installs." },
+          "services": { "type": "array", "items": { "type": "string" }, "description": "A compose file's services." }
+        }
+      }
+    },
+    "unlisted_packages": { "type": "array", "items": { "type": "string" }, "description": "Python packages the code imports, when there is no requirements file." },
+    "incomplete": { "type": "string", "description": "Why only part of the project was read, when a cap was reached." }
+  }
+}

@@ -1,0 +1,259 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its pages talk straight to Supabase, so llocal gives it a small server of its own, written in Go, and keeps the data in SQLite.",
+    "found": [
+      "A React website, made with Lovable.",
+      "3 pages: /, /auth and /jobs/{id}.",
+      "1 function on Supabase: send-quote.",
+      "A Supabase database at abcdefghijklmnopqrst.supabase.co, with 2 tables: profiles and jobs. Visitors' browsers talk to it directly.",
+      "Its own login: email and password through Supabase, with people kept in auth.users.",
+      "Outside services: Resend (email).",
+      "People upload files, kept in Supabase Storage."
+    ],
+    "left": [
+      {
+        "kind": "login",
+        "text": "It has its own login (email and password through Supabase), which goes: llocal signs people in with their work account."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in Supabase (2 tables) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "browser",
+        "text": "Visitors' browsers talk to Supabase directly. Those calls go through the app's own server instead."
+      },
+      {
+        "kind": "server",
+        "text": "It has no server of its own, and needs a small one in Go, on llocal's kit, for the work Supabase does for its pages."
+      },
+      {
+        "kind": "functions",
+        "text": "Its 1 function on Supabase (send-quote) moves into the app's own server."
+      },
+      {
+        "kind": "uploads",
+        "text": "Files people upload are kept in Supabase Storage, and move into the app's own storage on llocal."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The Supabase data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The pages stop talking to the database directly and ask the app's own server instead.",
+        "detail": "Today each visitor's browser reaches the database with a key anyone can read in the pages, and only the database's own rules stand in the way. On llocal only people who have signed in reach the data, and only through the server, which checks the same rules."
+      },
+      {
+        "text": "The app's own login goes, and llocal signs people in.",
+        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in auth.users stays, so everyone keeps their own records."
+      },
+      {
+        "text": "llocal adds a small server, written in Go, that does the work Supabase did for the pages, including the send-quote function.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      },
+      {
+        "text": "Uploaded files move to llocal.",
+        "detail": "They are kept and backed up with the app."
+      }
+    ],
+    "outside": [
+      {
+        "text": "Resend (email) stays connected.",
+        "detail": "It needs RESEND_API_KEY."
+      }
+    ],
+    "needs": [
+      {
+        "text": "Your Resend key, saved as RESEND_API_KEY.",
+        "setting": "RESEND_API_KEY"
+      },
+      {
+        "text": "So we can copy your data once: a key that can read every table of your Supabase project (abcdefghijklmnopqrst.supabase.co). The service_role key (Supabase \u003e Project Settings \u003e API Keys) or the database password will do. It is used for the copy, then thrown away."
+      }
+    ],
+    "settings": [
+      {
+        "name": "RESEND_API_KEY",
+        "kind": "secret",
+        "service": "resend"
+      }
+    ],
+    "dropped": [
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_URL",
+      "VITE_SUPABASE_PROJECT_ID",
+      "VITE_SUPABASE_PUBLISHABLE_KEY",
+      "VITE_SUPABASE_URL"
+    ],
+    "tell": [
+      {
+        "service": "Any of these services that only accepts calls from listed addresses",
+        "value": "203.0.113.7",
+        "where": "its list of allowed IP addresses"
+      }
+    ],
+    "if_not_converted": "Until it is converted, the Supabase database is reached straight from each visitor's browser, and llocal's sign-in does not stand in front of it: anyone who has its address and the key in the pages can try to read it."
+  },
+  "survey": {
+    "languages": [
+      "typescript"
+    ],
+    "frameworks": [
+      "react",
+      "react-router",
+      "vite"
+    ],
+    "builder": "lovable",
+    "pages": [
+      {
+        "path": "/",
+        "file": "src/App.tsx"
+      },
+      {
+        "path": "/auth",
+        "file": "src/App.tsx"
+      },
+      {
+        "path": "/jobs/{id}",
+        "file": "src/App.tsx"
+      }
+    ],
+    "routes": [],
+    "functions": [
+      {
+        "name": "send-quote",
+        "kind": "supabase-edge",
+        "file": "supabase/functions/send-quote/index.ts"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "supabase",
+        "host": "abcdefghijklmnopqrst.supabase.co",
+        "browser": true,
+        "env": [
+          "SUPABASE_SERVICE_ROLE_KEY",
+          "SUPABASE_URL",
+          "VITE_SUPABASE_PROJECT_ID",
+          "VITE_SUPABASE_PUBLISHABLE_KEY",
+          "VITE_SUPABASE_URL"
+        ],
+        "files": [
+          "src/integrations/supabase/client.ts",
+          "supabase/functions/send-quote/index.ts"
+        ],
+        "tables": [
+          {
+            "name": "profiles",
+            "columns": [
+              "id",
+              "full_name",
+              "created_at"
+            ],
+            "file": "supabase/migrations/20250301120000_8f1c2a.sql"
+          },
+          {
+            "name": "jobs",
+            "columns": [
+              "id",
+              "user_id",
+              "customer",
+              "address",
+              "status",
+              "quote_cents",
+              "created_at"
+            ],
+            "file": "supabase/migrations/20250301120000_8f1c2a.sql"
+          }
+        ]
+      }
+    ],
+    "login": {
+      "provider": "supabase",
+      "user_table": "auth.users",
+      "files": [
+        "src/pages/Auth.tsx"
+      ]
+    },
+    "services": [
+      {
+        "name": "resend",
+        "kind": "email",
+        "files": [
+          "supabase/functions/send-quote/index.ts"
+        ]
+      }
+    ],
+    "env": [
+      {
+        "name": "RESEND_API_KEY",
+        "files": [
+          "supabase/functions/send-quote/index.ts"
+        ],
+        "service": "resend"
+      },
+      {
+        "name": "SUPABASE_SERVICE_ROLE_KEY",
+        "files": [
+          "supabase/functions/send-quote/index.ts"
+        ],
+        "looks": "service_role",
+        "service": "supabase"
+      },
+      {
+        "name": "SUPABASE_URL",
+        "files": [
+          "supabase/functions/send-quote/index.ts"
+        ],
+        "service": "supabase"
+      },
+      {
+        "name": "VITE_SUPABASE_PROJECT_ID",
+        "files": [
+          ".env"
+        ],
+        "browser": true,
+        "set": true,
+        "service": "supabase"
+      },
+      {
+        "name": "VITE_SUPABASE_PUBLISHABLE_KEY",
+        "files": [
+          "src/integrations/supabase/client.ts",
+          ".env"
+        ],
+        "browser": true,
+        "set": true,
+        "looks": "publishable",
+        "service": "supabase"
+      },
+      {
+        "name": "VITE_SUPABASE_URL",
+        "files": [
+          "src/integrations/supabase/client.ts",
+          ".env"
+        ],
+        "browser": true,
+        "set": true,
+        "service": "supabase"
+      }
+    ],
+    "uploads": [
+      {
+        "kind": "supabase-storage",
+        "file": "src/pages/Job.tsx"
+      },
+      {
+        "kind": "form",
+        "file": "src/pages/Job.tsx"
+      }
+    ]
+  }
+}

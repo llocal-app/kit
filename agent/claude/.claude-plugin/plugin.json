@@ -1,0 +1,8 @@
+{
+  "name": "llocal",
+  "version": "1.0.0",
+  "description": "Host this project on llocal: survey it, rework it onto llocal's standard shape (one Go server, one SQLite file, no login of its own), upload it, and hand over a preview behind your company's sign-in.",
+  "author": { "name": "llocal", "email": "help@llocal.app", "url": "https://llocal.app" },
+  "homepage": "https://llocal.app/agent.md",
+  "license": "MIT"
+}

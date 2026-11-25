@@ -1,0 +1,158 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its Flask server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own Flask server.",
+      "2 server routes, like GET /api/invoices and GET /api/invoices/{invoice_id}.pdf.",
+      "A PostgreSQL database, with 1 table: invoices.",
+      "A Redis database.",
+      "Docker files: Dockerfile and docker-compose.yml."
+    ],
+    "left": [
+      {
+        "kind": "docker",
+        "text": "It comes with Docker files, which llocal doesn't run: anything they install or start besides the app has to go, or move into the app."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in PostgreSQL (1 table) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in Redis and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "server",
+        "text": "Its Flask server (2 routes in 1 file, 1 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The PostgreSQL and Redis data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The Flask server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ],
+    "needs": [
+      {
+        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+      },
+      {
+        "text": "So we can copy your data once: the full address of your Redis database, like the one in REDIS_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+      }
+    ],
+    "blockers": [
+      {
+        "case": "container",
+        "title": "It comes with Docker files",
+        "detail": "We found Dockerfile and docker-compose.yml. llocal does not run Docker: it builds the app from its own code, in llocal's standard setup for Node, Python or Go. Dockerfile installs wkhtmltopdf, which the app may need. docker-compose.yml starts 3 services: web, db and cache.",
+        "way_out": "If they only install and start the app, there is nothing to do: llocal leaves them out. A database in them becomes SQLite on llocal. If the app needs other programs installed, or another service from them, tell us which, or upload that service as its own app."
+      }
+    ],
+    "dropped": [
+      "DATABASE_URL",
+      "REDIS_URL"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "python"
+    ],
+    "frameworks": [
+      "flask"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "flask",
+        "files": 1,
+        "bytes": 753
+      }
+    ],
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/invoices",
+        "file": "app.py"
+      },
+      {
+        "method": "GET",
+        "path": "/api/invoices/{invoice_id}.pdf",
+        "file": "app.py"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "postgres",
+        "env": [
+          "DATABASE_URL"
+        ],
+        "files": [
+          "app.py"
+        ],
+        "tables": [
+          {
+            "name": "invoices",
+            "columns": [
+              "id",
+              "customer",
+              "total"
+            ],
+            "file": "schema.sql"
+          }
+        ]
+      },
+      {
+        "kind": "redis",
+        "env": [
+          "REDIS_URL"
+        ],
+        "files": [
+          "app.py"
+        ],
+        "tables": []
+      }
+    ],
+    "env": [
+      {
+        "name": "DATABASE_URL",
+        "files": [
+          "app.py"
+        ],
+        "service": "postgres"
+      },
+      {
+        "name": "REDIS_URL",
+        "files": [
+          "app.py"
+        ],
+        "service": "redis"
+      }
+    ],
+    "containers": [
+      {
+        "file": "Dockerfile",
+        "installs": [
+          "wkhtmltopdf"
+        ]
+      },
+      {
+        "file": "docker-compose.yml",
+        "services": [
+          "web",
+          "db",
+          "cache"
+        ]
+      }
+    ]
+  }
+}

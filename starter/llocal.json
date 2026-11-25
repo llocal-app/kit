@@ -1,0 +1,8 @@
+{
+  "shape": "standard",
+  "base": "go",
+  "build": "go build -o server .",
+  "start": "./server",
+  "port": 8080,
+  "static": "web"
+}

@@ -1,0 +1,248 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its Express server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own Express server and a React front end, made with Replit.",
+      "3 pages: /, /tools and /tools/{id}.",
+      "8 server routes, like GET /api/auth/user, GET /api/callback, GET /api/login and 5 more.",
+      "A PostgreSQL database, with 3 tables: sessions, users and tools.",
+      "Its own login: Replit's own login, with people kept in users."
+    ],
+    "left": [
+      {
+        "kind": "login",
+        "text": "It signs people in with Replit's own login, which works only while Replit runs the app. llocal's sign-in takes its place."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in PostgreSQL (3 tables) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "server",
+        "text": "Its Express server (8 routes in 6 files, 6 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The PostgreSQL data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The app's own login goes, and llocal signs people in.",
+        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in users stays, so everyone keeps their own records."
+      },
+      {
+        "text": "The Express server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ],
+    "needs": [
+      {
+        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+      }
+    ],
+    "blockers": [
+      {
+        "case": "host_login",
+        "title": "Its login only works on Replit",
+        "detail": "The app signs people in with Replit's own login, which works only while Replit runs the app.",
+        "way_out": "llocal's sign-in takes its place when the app is converted, so people sign in with their work account. Until then the app cannot go live as it is."
+      }
+    ],
+    "dropped": [
+      "DATABASE_URL",
+      "ISSUER_URL",
+      "NODE_ENV",
+      "PORT",
+      "REPLIT_DOMAINS",
+      "REPL_ID",
+      "SESSION_SECRET"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "typescript"
+    ],
+    "frameworks": [
+      "express",
+      "react",
+      "vite"
+    ],
+    "builder": "replit",
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "express",
+        "files": 6,
+        "bytes": 5918
+      }
+    ],
+    "pages": [
+      {
+        "path": "/",
+        "file": "client/src/App.tsx"
+      },
+      {
+        "path": "/tools",
+        "file": "client/src/App.tsx"
+      },
+      {
+        "path": "/tools/{id}",
+        "file": "client/src/App.tsx"
+      }
+    ],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/auth/user",
+        "file": "server/routes.ts"
+      },
+      {
+        "method": "GET",
+        "path": "/api/callback",
+        "file": "server/replitAuth.ts"
+      },
+      {
+        "method": "GET",
+        "path": "/api/login",
+        "file": "server/replitAuth.ts"
+      },
+      {
+        "method": "GET",
+        "path": "/api/logout",
+        "file": "server/replitAuth.ts"
+      },
+      {
+        "method": "GET",
+        "path": "/api/tools",
+        "file": "server/routes.ts"
+      },
+      {
+        "method": "POST",
+        "path": "/api/tools",
+        "file": "server/routes.ts"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/tools/{id}",
+        "file": "server/routes.ts"
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/tools/{id}/checkout",
+        "file": "server/routes.ts"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "postgres",
+        "env": [
+          "DATABASE_URL"
+        ],
+        "files": [
+          "server/db.ts"
+        ],
+        "tables": [
+          {
+            "name": "sessions",
+            "columns": [
+              "sid",
+              "sess",
+              "expire"
+            ],
+            "file": "shared/schema.ts"
+          },
+          {
+            "name": "users",
+            "columns": [
+              "id",
+              "email",
+              "first_name",
+              "last_name",
+              "created_at"
+            ],
+            "file": "shared/schema.ts"
+          },
+          {
+            "name": "tools",
+            "columns": [
+              "id",
+              "name",
+              "checked_out_by",
+              "checked_out_at",
+              "uses"
+            ],
+            "file": "shared/schema.ts"
+          }
+        ]
+      }
+    ],
+    "login": {
+      "provider": "replit",
+      "user_table": "users",
+      "files": [
+        "server/replitAuth.ts"
+      ]
+    },
+    "env": [
+      {
+        "name": "DATABASE_URL",
+        "files": [
+          "drizzle.config.ts",
+          "server/db.ts",
+          "server/replitAuth.ts"
+        ],
+        "service": "postgres"
+      },
+      {
+        "name": "ISSUER_URL",
+        "files": [
+          "server/replitAuth.ts"
+        ],
+        "service": "login"
+      },
+      {
+        "name": "NODE_ENV",
+        "files": [
+          "vite.config.ts"
+        ],
+        "service": "platform"
+      },
+      {
+        "name": "PORT",
+        "files": [
+          "server/index.ts"
+        ],
+        "service": "platform"
+      },
+      {
+        "name": "REPLIT_DOMAINS",
+        "files": [
+          "server/replitAuth.ts"
+        ],
+        "service": "login"
+      },
+      {
+        "name": "REPL_ID",
+        "files": [
+          "server/replitAuth.ts",
+          "vite.config.ts"
+        ],
+        "service": "login"
+      },
+      {
+        "name": "SESSION_SECRET",
+        "files": [
+          "server/replitAuth.ts"
+        ],
+        "looks": "secret_key",
+        "service": "login"
+      }
+    ]
+  }
+}

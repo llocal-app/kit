@@ -1,0 +1,184 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its Next.js server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own Next.js server.",
+      "2 pages: / and /tasks/{id}.",
+      "3 server routes, like /api/auth/{nextauth}, /api/tasks and /api/tasks/{id}.",
+      "A PostgreSQL database at localhost:5432, with 2 tables: User and tasks.",
+      "Its own login: NextAuth, with people kept in User."
+    ],
+    "left": [
+      {
+        "kind": "login",
+        "text": "It has its own login (NextAuth), which goes: llocal signs people in with their work account."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in PostgreSQL (2 tables) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "server",
+        "text": "Its Next.js server code (3 routes in 7 files, 3 KB) is rewritten in Go on llocal's kit, and its pages are built once into plain files."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The PostgreSQL data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The app's own login goes, and llocal signs people in.",
+        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in User stays, so everyone keeps their own records."
+      },
+      {
+        "text": "The pages are built once into plain files, and its server routes and functions are rewritten in Go, at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ],
+    "needs": [
+      {
+        "text": "The PostgreSQL database's address in the code, localhost:5432, points at your own computer. If the real data is there, export it to a file (a backup, or a spreadsheet per table) and add it to the upload. If it lives somewhere else, give us that address and a user that can read every table."
+      }
+    ],
+    "dropped": [
+      "DATABASE_URL",
+      "GITHUB_ID",
+      "GITHUB_SECRET",
+      "NEXTAUTH_SECRET",
+      "NEXTAUTH_URL"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "typescript"
+    ],
+    "frameworks": [
+      "nextjs",
+      "react"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "nextjs",
+        "files": 7,
+        "bytes": 2722
+      }
+    ],
+    "pages": [
+      {
+        "path": "/",
+        "file": "pages/index.tsx"
+      },
+      {
+        "path": "/tasks/{id}",
+        "file": "pages/tasks/[id].tsx"
+      }
+    ],
+    "routes": [
+      {
+        "path": "/api/auth/{nextauth}",
+        "file": "pages/api/auth/[...nextauth].ts"
+      },
+      {
+        "path": "/api/tasks",
+        "file": "pages/api/tasks/index.ts"
+      },
+      {
+        "path": "/api/tasks/{id}",
+        "file": "pages/api/tasks/[id].ts"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "postgres",
+        "host": "localhost:5432",
+        "env": [
+          "DATABASE_URL"
+        ],
+        "files": [
+          "prisma/schema.prisma"
+        ],
+        "tables": [
+          {
+            "name": "User",
+            "columns": [
+              "id",
+              "email",
+              "name"
+            ],
+            "file": "prisma/schema.prisma"
+          },
+          {
+            "name": "tasks",
+            "columns": [
+              "id",
+              "title",
+              "done",
+              "due_at",
+              "owner_id"
+            ],
+            "file": "prisma/schema.prisma"
+          }
+        ]
+      }
+    ],
+    "login": {
+      "provider": "nextauth",
+      "user_table": "User",
+      "files": [
+        "pages/_app.tsx",
+        "pages/api/auth/[...nextauth].ts",
+        "pages/api/tasks/index.ts",
+        "pages/index.tsx"
+      ]
+    },
+    "env": [
+      {
+        "name": "DATABASE_URL",
+        "files": [
+          "prisma/schema.prisma",
+          ".env.example"
+        ],
+        "service": "postgres"
+      },
+      {
+        "name": "GITHUB_ID",
+        "files": [
+          "pages/api/auth/[...nextauth].ts",
+          ".env.example"
+        ],
+        "service": "login"
+      },
+      {
+        "name": "GITHUB_SECRET",
+        "files": [
+          "pages/api/auth/[...nextauth].ts",
+          ".env.example"
+        ],
+        "looks": "secret_key",
+        "service": "login"
+      },
+      {
+        "name": "NEXTAUTH_SECRET",
+        "files": [
+          ".env.example"
+        ],
+        "looks": "secret_key",
+        "service": "login"
+      },
+      {
+        "name": "NEXTAUTH_URL",
+        "files": [
+          ".env.example"
+        ],
+        "service": "login"
+      }
+    ]
+  }
+}

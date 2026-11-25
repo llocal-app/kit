@@ -1,0 +1,3 @@
+# Some exports commit their .env on purpose (Lovable), so the fixtures do too. Every value
+# in them is fake.
+!.env

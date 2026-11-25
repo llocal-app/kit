@@ -1,0 +1,11 @@
+{
+  "name": "llocal",
+  "owner": { "name": "llocal", "email": "help@llocal.app" },
+  "plugins": [
+    {
+      "name": "llocal",
+      "source": "./agent/claude",
+      "description": "Host this project on llocal, behind your company's sign-in."
+    }
+  ]
+}

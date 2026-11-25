@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://llocal.app/llocal.schema.json",
+  "title": "llocal.json",
+  "description": "How llocal builds an app, starts it and what it needs. Commands run with /bin/sh -c in the app's root folder. The checker (llocal-check) applies the full rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["shape", "base"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "shape": {
+      "enum": ["standard", "kept", "static"],
+      "description": "standard: a Go server on llocal's kit with SQLite. kept: the app's own server, kept, with its data on SQLite. static: only files, no server."
+    },
+    "base": {
+      "enum": ["go", "node", "python", "static"],
+      "description": "The stock image the app is built and run in. go also has Node, for building a front end. static has no toolchain."
+    },
+    "install": { "type": "string", "description": "Installs dependencies, like npm ci. Has network through llocal's package proxy." },
+    "build": { "type": "string", "description": "Builds the app, like go build -o server . && cd web && npm run build." },
+    "start": { "type": "string", "description": "Runs the server. It must listen on $PORT on all interfaces." },
+    "migrate": { "type": "string", "description": "Brings the database up to date before each start. Leave out for kit apps, which migrate at start." },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "The port the server listens on. llocal sets $PORT to it." },
+    "static": { "type": "string", "description": "The folder, inside the app, of built front-end files. Served with index.html for unknown paths." },
+    "persistent": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files or folders inside the app that must survive a restart. They are linked into /data."
+    },
+    "build_settings": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^(VITE_|NEXT_PUBLIC_|PUBLIC_|REACT_APP_)[A-Z0-9_]*$" },
+      "description": "Names of public settings the front-end build bakes in. Changing one rebuilds."
+    },
+    "secrets": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+      "description": "Names of secrets the server reads from its environment. Set in llocal, never in the repo."
+    },
+    "services": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Outside services the app still uses, like stripe or openai."
+    },
+    "schedules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "cron"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^/" },
+          "cron": { "type": "string", "description": "Five numeric cron fields in the app's time zone, like 0 6 * * *." }
+        }
+      },
+      "description": "Paths llocal calls on a timetable."
+    },
+    "machine_paths": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^/" },
+      "description": "Paths open to machines with an access key, like webhooks."
+    }
+  }
+}

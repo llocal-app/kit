@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "llocal": { "type": "http", "url": "https://llocal.app/mcp" }
+  }
+}

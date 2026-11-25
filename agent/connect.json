@@ -1,0 +1,93 @@
+{
+  "published": false,
+  "server": "https://llocal.app/mcp",
+  "prompt": "Host this project on llocal. Follow https://llocal.app/agent.md step by step.",
+  "fix_prompt": "My app on llocal didn't go live (app_id {app_id}). Call deployment_status for it and follow step 7 of https://llocal.app/agent.md.",
+  "tools": [
+    {
+      "name": "Claude Code",
+      "kind": "command",
+      "text": "claude mcp add --transport http --scope user llocal https://llocal.app/mcp && claude mcp login llocal && claude \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
+      "note": "Paste it in a terminal, in your project's folder. Your browser opens to sign in to llocal."
+    },
+    {
+      "name": "Codex",
+      "kind": "command",
+      "text": "codex mcp add llocal --url https://llocal.app/mcp && codex mcp login llocal && codex \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
+      "note": "Paste it in a terminal, in your project's folder. Your browser opens to sign in to llocal."
+    },
+    {
+      "name": "Cursor",
+      "kind": "link",
+      "text": "cursor://anysphere.cursor-deeplink/mcp/install?name=llocal&config=eyJ1cmwiOiJodHRwczovL2xsb2NhbC5hcHAvbWNwIn0=",
+      "then": "Host this project on llocal. Follow https://llocal.app/agent.md step by step.",
+      "note": "Open the link to add llocal to Cursor, then paste the sentence into Cursor's agent chat. Cursor asks you to sign in to llocal the first time."
+    },
+    {
+      "name": "VS Code",
+      "kind": "link",
+      "text": "vscode:mcp/install?%7B%22name%22%3A%22llocal%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fllocal.app%2Fmcp%22%7D",
+      "then": "Host this project on llocal. Follow https://llocal.app/agent.md step by step.",
+      "note": "Open the link to add llocal, then paste the sentence into Copilot Chat in agent mode. VS Code asks you to sign in to llocal."
+    },
+    {
+      "name": "Windsurf",
+      "kind": "command",
+      "text": "devin mcp add -s user llocal https://llocal.app/mcp && devin \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
+      "note": "Windsurf is now Devin Desktop. Paste it in a terminal, in your project's folder."
+    },
+    {
+      "name": "Gemini CLI",
+      "kind": "command",
+      "text": "gemini mcp add --scope user --transport http llocal https://llocal.app/mcp && gemini -i \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
+      "note": "Paste it in a terminal, in your project's folder. If it says llocal needs signing in, type /mcp auth llocal."
+    },
+    {
+      "name": "Cline",
+      "kind": "command",
+      "text": "cline mcp add llocal https://llocal.app/mcp --transport http --yes && cline --auto-approve false \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
+      "note": "Paste it in a terminal, in your project's folder."
+    },
+    {
+      "name": "Zed",
+      "kind": "config",
+      "text": "\"context_servers\": { \"llocal\": { \"url\": \"https://llocal.app/mcp\" } }",
+      "note": "Add it to Zed's settings.json, then ask Zed's agent to host the project on llocal."
+    },
+    {
+      "name": "Claude",
+      "kind": "steps",
+      "text": "In Claude, open Customize, then Connectors, then Add custom connector. Name it llocal, give it https://llocal.app/mcp, and press Connect.",
+      "note": "For checking on your apps and sharing them. To upload a project, use an agent that works in its folder, like Claude Code."
+    },
+    {
+      "name": "ChatGPT",
+      "kind": "steps",
+      "text": "On chatgpt.com, open Plugins, then + and Add custom MCP server. Give it https://llocal.app/mcp with OAuth, and install it.",
+      "note": "For checking on your apps and sharing them. To upload a project, use an agent that works in its folder, like Codex."
+    },
+    {
+      "name": "Another tool",
+      "kind": "steps",
+      "text": "Add a remote MCP server at https://llocal.app/mcp. It signs you in to llocal in your browser.",
+      "note": "A tool that can't sign in in the browser takes a token instead: make one on your llocal profile page and send it as the header Authorization: Bearer <token>."
+    }
+  ],
+  "packages": [
+    {
+      "name": "Claude Code plugin",
+      "text": "claude plugin marketplace add llocal-app/kit && claude plugin install llocal@llocal",
+      "note": "Works once the kit's repository, github.com/llocal-app/kit, is public."
+    },
+    {
+      "name": "Cursor rule",
+      "text": "https://llocal.app/agent/cursor/llocal.mdc",
+      "note": "Save it as .cursor/rules/llocal.mdc in a converted project."
+    },
+    {
+      "name": "AGENTS.md",
+      "text": "https://llocal.app/agent/AGENTS.md",
+      "note": "Add it to the project's AGENTS.md or CLAUDE.md, for Codex and other tools."
+    }
+  ]
+}

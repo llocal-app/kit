@@ -1,0 +1,134 @@
+{
+  "plan": {
+    "shape": "kept",
+    "why": "It already keeps its data in SQLite, so its server stays as it is and the data file moves to llocal.",
+    "found": [
+      "A project with 2 servers: Express in api and FastAPI in pricer.",
+      "3 server routes, like GET /api/estimates, POST /api/estimates and POST /price.",
+      "Its data is in SQLite already, with 1 table: estimates."
+    ],
+    "left": [
+      {
+        "kind": "servers",
+        "text": "It holds 2 servers: Express in api and FastAPI in pricer, and llocal runs one server for each app."
+      },
+      {
+        "kind": "database",
+        "text": "Its SQLite file moves into llocal's data folder, where it survives updates and is backed up."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The SQLite file moves into llocal's data folder.",
+        "detail": "There it survives updates and is backed up."
+      },
+      {
+        "text": "Its own Express and FastAPI servers stay.",
+        "detail": "It already keeps its data in SQLite, so its server stays as it is and the data file moves to llocal."
+      }
+    ],
+    "needs": [
+      {
+        "text": "The value of PRICER_URL.",
+        "setting": "PRICER_URL"
+      }
+    ],
+    "blockers": [
+      {
+        "case": "two_services",
+        "title": "This folder holds more than one app",
+        "detail": "We found 2 servers: Express in api and FastAPI in pricer. llocal runs one server for each app.",
+        "way_out": "Upload each one as its own app, or tell us which one this is. If they work together, llocal can merge them into one server when it converts the app."
+      }
+    ],
+    "settings": [
+      {
+        "name": "PRICER_URL",
+        "kind": "secret"
+      }
+    ],
+    "dropped": [
+      "PORT"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "javascript",
+      "python"
+    ],
+    "frameworks": [
+      "express",
+      "fastapi"
+    ],
+    "servers": [
+      {
+        "dir": "api",
+        "framework": "express",
+        "files": 1,
+        "bytes": 740
+      },
+      {
+        "dir": "pricer",
+        "framework": "fastapi",
+        "files": 1,
+        "bytes": 209
+      }
+    ],
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/estimates",
+        "file": "api/index.js"
+      },
+      {
+        "method": "POST",
+        "path": "/api/estimates",
+        "file": "api/index.js"
+      },
+      {
+        "method": "POST",
+        "path": "/price",
+        "file": "pricer/main.py"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "sqlite",
+        "files": [
+          "api/index.js"
+        ],
+        "tables": [
+          {
+            "name": "estimates",
+            "columns": [
+              "id",
+              "customer",
+              "total"
+            ],
+            "file": "api/index.js"
+          }
+        ]
+      }
+    ],
+    "env": [
+      {
+        "name": "PORT",
+        "files": [
+          "api/index.js"
+        ],
+        "service": "platform"
+      },
+      {
+        "name": "PRICER_URL",
+        "files": [
+          "api/index.js"
+        ]
+      }
+    ]
+  }
+}

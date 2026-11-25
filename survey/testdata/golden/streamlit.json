@@ -1,0 +1,148 @@
+{
+  "plan": {
+    "shape": "kept",
+    "why": "Streamlit draws the pages in Python, so its server stays as it is and only the data moves.",
+    "found": [
+      "An app with its own Streamlit server.",
+      "1 page: /.",
+      "Its data is in SQLite already, with 1 table: estimates.",
+      "Outside services: OpenAI (AI).",
+      "People upload files, kept by its server."
+    ],
+    "left": [
+      {
+        "kind": "database",
+        "text": "Its SQLite file moves into llocal's data folder, where it survives updates and is backed up."
+      },
+      {
+        "kind": "uploads",
+        "text": "Files people upload are kept by its server, and move into the app's own storage on llocal."
+      },
+      {
+        "kind": "packages",
+        "text": "The Python packages it needs aren't written down anywhere (openai, pandas, plotly and streamlit), and llocal needs that list to install them."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The SQLite file moves into llocal's data folder.",
+        "detail": "There it survives updates and is backed up."
+      },
+      {
+        "text": "Its own Streamlit server stays.",
+        "detail": "Streamlit draws the pages in Python, so its server stays as it is and only the data moves."
+      },
+      {
+        "text": "Uploaded files move to llocal.",
+        "detail": "They are kept and backed up with the app."
+      },
+      {
+        "text": "llocal writes down the Python packages it needs: openai, pandas, plotly and streamlit.",
+        "detail": "The project has no complete list of them, and the app cannot be installed without one."
+      }
+    ],
+    "outside": [
+      {
+        "text": "OpenAI (AI) stays connected.",
+        "detail": "It needs OPENAI_API_KEY."
+      }
+    ],
+    "needs": [
+      {
+        "text": "Your OpenAI key, saved as OPENAI_API_KEY.",
+        "setting": "OPENAI_API_KEY"
+      }
+    ],
+    "settings": [
+      {
+        "name": "OPENAI_API_KEY",
+        "kind": "secret",
+        "service": "openai"
+      }
+    ],
+    "tell": [
+      {
+        "service": "Any of these services that only accepts calls from listed addresses",
+        "value": "203.0.113.7",
+        "where": "its list of allowed IP addresses"
+      }
+    ]
+  },
+  "survey": {
+    "languages": [
+      "python"
+    ],
+    "frameworks": [
+      "streamlit"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "streamlit",
+        "files": 3,
+        "bytes": 1005
+      }
+    ],
+    "server_pages": true,
+    "pages": [
+      {
+        "path": "/"
+      }
+    ],
+    "routes": [],
+    "data_stores": [
+      {
+        "kind": "sqlite",
+        "files": [
+          "app.py"
+        ],
+        "tables": [
+          {
+            "name": "estimates",
+            "columns": [
+              "id",
+              "job",
+              "hours",
+              "rate"
+            ],
+            "file": "app.py"
+          }
+        ]
+      }
+    ],
+    "services": [
+      {
+        "name": "openai",
+        "kind": "AI",
+        "files": [
+          "app.py"
+        ]
+      }
+    ],
+    "env": [
+      {
+        "name": "OPENAI_API_KEY",
+        "files": [
+          "app.py"
+        ],
+        "service": "openai"
+      }
+    ],
+    "uploads": [
+      {
+        "kind": "server",
+        "file": "app.py"
+      }
+    ],
+    "unlisted_packages": [
+      "openai",
+      "pandas",
+      "plotly",
+      "streamlit"
+    ]
+  }
+}

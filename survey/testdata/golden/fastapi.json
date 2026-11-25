@@ -1,0 +1,190 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its FastAPI server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own FastAPI server.",
+      "5 server routes, like GET /api/items, POST /api/items, GET /api/items/{item_id} and 2 more.",
+      "A PostgreSQL database, with 1 table: items.",
+      "Outside services: OpenAI (AI).",
+      "People upload files, kept by its server.",
+      "1 timed job, in main.py."
+    ],
+    "left": [
+      {
+        "kind": "database",
+        "text": "Its data is in PostgreSQL (1 table) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "server",
+        "text": "Its FastAPI server (5 routes in 5 files, 2 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "schedules",
+        "text": "1 timed job moves to llocal's timetable: apps sleep when nobody uses them, which would stop a timer inside the app."
+      },
+      {
+        "kind": "uploads",
+        "text": "Files people upload are kept by its server, and move into the app's own storage on llocal."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The PostgreSQL data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The FastAPI server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      },
+      {
+        "text": "Timed jobs run on llocal's timetable instead of a timer inside the app.",
+        "detail": "Apps sleep when nobody is using them, which would stop a timer."
+      },
+      {
+        "text": "Uploaded files move to llocal.",
+        "detail": "They are kept and backed up with the app."
+      }
+    ],
+    "outside": [
+      {
+        "text": "OpenAI (AI) stays connected.",
+        "detail": "It needs OPENAI_API_KEY."
+      }
+    ],
+    "needs": [
+      {
+        "text": "Your OpenAI key, saved as OPENAI_API_KEY.",
+        "setting": "OPENAI_API_KEY"
+      },
+      {
+        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+      }
+    ],
+    "settings": [
+      {
+        "name": "OPENAI_API_KEY",
+        "kind": "secret",
+        "service": "openai"
+      }
+    ],
+    "dropped": [
+      "DATABASE_URL"
+    ],
+    "tell": [
+      {
+        "service": "Any of these services that only accepts calls from listed addresses",
+        "value": "203.0.113.7",
+        "where": "its list of allowed IP addresses"
+      }
+    ]
+  },
+  "survey": {
+    "languages": [
+      "python"
+    ],
+    "frameworks": [
+      "fastapi"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "fastapi",
+        "files": 5,
+        "bytes": 2459
+      }
+    ],
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/items",
+        "file": "routers/items.py"
+      },
+      {
+        "method": "POST",
+        "path": "/api/items",
+        "file": "routers/items.py"
+      },
+      {
+        "method": "GET",
+        "path": "/api/items/{item_id}",
+        "file": "routers/items.py"
+      },
+      {
+        "method": "POST",
+        "path": "/api/items/{item_id}/photo",
+        "file": "routers/items.py"
+      },
+      {
+        "method": "GET",
+        "path": "/health",
+        "file": "main.py"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "postgres",
+        "env": [
+          "DATABASE_URL"
+        ],
+        "files": [
+          "pyproject.toml"
+        ],
+        "tables": [
+          {
+            "name": "items",
+            "columns": [
+              "id",
+              "sku",
+              "name",
+              "on_hand",
+              "photo"
+            ],
+            "file": "db.py"
+          }
+        ]
+      }
+    ],
+    "services": [
+      {
+        "name": "openai",
+        "kind": "AI",
+        "files": [
+          "stock.py"
+        ]
+      }
+    ],
+    "env": [
+      {
+        "name": "DATABASE_URL",
+        "files": [
+          "db.py"
+        ],
+        "service": "postgres"
+      },
+      {
+        "name": "OPENAI_API_KEY",
+        "files": [
+          "stock.py"
+        ],
+        "service": "openai"
+      }
+    ],
+    "schedules": [
+      {
+        "file": "main.py"
+      }
+    ],
+    "uploads": [
+      {
+        "kind": "server",
+        "file": "routers/items.py"
+      }
+    ]
+  }
+}

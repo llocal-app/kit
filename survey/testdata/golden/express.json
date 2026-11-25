@@ -1,0 +1,336 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its Express server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own Express server.",
+      "6 server routes, like GET /api/jobs, POST /api/jobs, PUT /api/jobs/{id} and 3 more.",
+      "A PostgreSQL database at localhost:5432, with 2 tables: users and jobs.",
+      "Its own login: email and password, checked by the app itself, with people kept in users.",
+      "Outside services: Stripe (payments) and Twilio (text messages).",
+      "People upload files, kept by its server.",
+      "1 timed job, in server.js.",
+      "Stripe sends it events at /api/webhooks/stripe."
+    ],
+    "left": [
+      {
+        "kind": "login",
+        "text": "It has its own login (email and password, checked by the app itself), which goes: llocal signs people in with their work account."
+      },
+      {
+        "kind": "database",
+        "text": "Its data is in PostgreSQL (2 tables) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "server",
+        "text": "Its Express server (6 routes in 4 files, 3 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "schedules",
+        "text": "1 timed job moves to llocal's timetable: apps sleep when nobody uses them, which would stop a timer inside the app."
+      },
+      {
+        "kind": "webhooks",
+        "text": "Stripe sends it events at /api/webhooks/stripe, which is set apart from sign-in so they still get through."
+      },
+      {
+        "kind": "uploads",
+        "text": "Files people upload are kept by its server, and move into the app's own storage on llocal."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The PostgreSQL data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The app's own login goes, and llocal signs people in.",
+        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in users stays, so everyone keeps their own records."
+      },
+      {
+        "text": "The Express server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      },
+      {
+        "text": "Timed jobs run on llocal's timetable instead of a timer inside the app.",
+        "detail": "Apps sleep when nobody is using them, which would stop a timer."
+      },
+      {
+        "text": "Uploaded files move to llocal.",
+        "detail": "They are kept and backed up with the app."
+      }
+    ],
+    "outside": [
+      {
+        "text": "Stripe (payments) stays connected.",
+        "detail": "It needs STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET."
+      },
+      {
+        "text": "Twilio (text messages) stays connected.",
+        "detail": "It needs TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM."
+      }
+    ],
+    "needs": [
+      {
+        "text": "Your Stripe key, saved as STRIPE_SECRET_KEY.",
+        "setting": "STRIPE_SECRET_KEY"
+      },
+      {
+        "text": "Your Stripe key, saved as STRIPE_WEBHOOK_SECRET.",
+        "setting": "STRIPE_WEBHOOK_SECRET"
+      },
+      {
+        "text": "Your Twilio key, saved as TWILIO_ACCOUNT_SID.",
+        "setting": "TWILIO_ACCOUNT_SID"
+      },
+      {
+        "text": "Your Twilio key, saved as TWILIO_AUTH_TOKEN.",
+        "setting": "TWILIO_AUTH_TOKEN"
+      },
+      {
+        "text": "Your Twilio setting TWILIO_FROM.",
+        "setting": "TWILIO_FROM"
+      },
+      {
+        "text": "The PostgreSQL database's address in the code, localhost:5432, points at your own computer. If the real data is there, export it to a file (a backup, or a spreadsheet per table) and add it to the upload. If it lives somewhere else, give us that address and a user that can read every table."
+      }
+    ],
+    "settings": [
+      {
+        "name": "STRIPE_SECRET_KEY",
+        "kind": "secret",
+        "service": "stripe"
+      },
+      {
+        "name": "STRIPE_WEBHOOK_SECRET",
+        "kind": "secret",
+        "service": "stripe"
+      },
+      {
+        "name": "TWILIO_ACCOUNT_SID",
+        "kind": "secret",
+        "service": "twilio"
+      },
+      {
+        "name": "TWILIO_AUTH_TOKEN",
+        "kind": "secret",
+        "service": "twilio"
+      },
+      {
+        "name": "TWILIO_FROM",
+        "kind": "secret",
+        "service": "twilio"
+      }
+    ],
+    "dropped": [
+      "DATABASE_URL",
+      "SESSION_SECRET"
+    ],
+    "tell": [
+      {
+        "service": "Stripe",
+        "value": "https://app.acme.llocal.app/api/webhooks/stripe",
+        "where": "Stripe dashboard \u003e Developers \u003e Webhooks: change the endpoint's address"
+      },
+      {
+        "service": "Any of these services that only accepts calls from listed addresses",
+        "value": "203.0.113.7",
+        "where": "its list of allowed IP addresses"
+      }
+    ]
+  },
+  "survey": {
+    "languages": [
+      "javascript"
+    ],
+    "frameworks": [
+      "express"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "express",
+        "files": 4,
+        "bytes": 3334
+      }
+    ],
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/jobs",
+        "file": "routes/jobs.js"
+      },
+      {
+        "method": "POST",
+        "path": "/api/jobs",
+        "file": "routes/jobs.js"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/jobs/{id}",
+        "file": "routes/jobs.js"
+      },
+      {
+        "method": "POST",
+        "path": "/api/photos",
+        "file": "server.js"
+      },
+      {
+        "method": "POST",
+        "path": "/api/webhooks/stripe",
+        "file": "server.js"
+      },
+      {
+        "method": "POST",
+        "path": "/login",
+        "file": "server.js"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "postgres",
+        "host": "localhost:5432",
+        "env": [
+          "DATABASE_URL"
+        ],
+        "files": [
+          "db.js"
+        ],
+        "tables": [
+          {
+            "name": "users",
+            "columns": [
+              "id",
+              "email",
+              "password_hash",
+              "name"
+            ],
+            "file": "db/schema.sql"
+          },
+          {
+            "name": "jobs",
+            "columns": [
+              "id",
+              "title",
+              "address",
+              "starts_on",
+              "assigned_to",
+              "invoice_id",
+              "paid"
+            ],
+            "file": "db/schema.sql"
+          }
+        ]
+      }
+    ],
+    "login": {
+      "provider": "passport",
+      "user_table": "users",
+      "files": [
+        "public/index.html",
+        "server.js"
+      ]
+    },
+    "services": [
+      {
+        "name": "stripe",
+        "kind": "payments",
+        "files": [
+          "server.js"
+        ]
+      },
+      {
+        "name": "twilio",
+        "kind": "text messages",
+        "files": [
+          "sms.js"
+        ]
+      }
+    ],
+    "env": [
+      {
+        "name": "DATABASE_URL",
+        "files": [
+          "db.js",
+          ".env.example"
+        ],
+        "service": "postgres"
+      },
+      {
+        "name": "SESSION_SECRET",
+        "files": [
+          "server.js",
+          ".env.example"
+        ],
+        "looks": "secret_key",
+        "service": "login"
+      },
+      {
+        "name": "STRIPE_SECRET_KEY",
+        "files": [
+          "server.js",
+          ".env.example"
+        ],
+        "looks": "secret_key",
+        "service": "stripe"
+      },
+      {
+        "name": "STRIPE_WEBHOOK_SECRET",
+        "files": [
+          "server.js",
+          ".env.example"
+        ],
+        "looks": "secret_key",
+        "service": "stripe"
+      },
+      {
+        "name": "TWILIO_ACCOUNT_SID",
+        "files": [
+          "sms.js",
+          ".env.example"
+        ],
+        "service": "twilio"
+      },
+      {
+        "name": "TWILIO_AUTH_TOKEN",
+        "files": [
+          "sms.js",
+          ".env.example"
+        ],
+        "service": "twilio"
+      },
+      {
+        "name": "TWILIO_FROM",
+        "files": [
+          "sms.js",
+          ".env.example"
+        ],
+        "service": "twilio"
+      }
+    ],
+    "schedules": [
+      {
+        "file": "server.js",
+        "cron": "0 7 * * 1-5"
+      }
+    ],
+    "webhooks": [
+      {
+        "path": "/api/webhooks/stripe",
+        "service": "stripe",
+        "file": "server.js"
+      }
+    ],
+    "uploads": [
+      {
+        "kind": "server",
+        "file": "server.js"
+      }
+    ]
+  }
+}
