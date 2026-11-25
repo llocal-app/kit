@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	"modernc.org/sqlite"
@@ -57,7 +58,15 @@ func (w writer) lock(ctx context.Context) error {
 	}
 }
 
-func (w writer) unlock() { <-w }
+// turns counts the writer's turns taken: by writes, even those that change nothing, and by
+// transactions. /healthz tells llocal's checker, which fails a request that only reads but
+// takes one.
+var turns atomic.Int64
+
+func (w writer) unlock() {
+	turns.Add(1)
+	<-w
+}
 
 type connector struct {
 	dsn string

@@ -18,6 +18,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -165,7 +166,11 @@ func (a *App) Run() {
 
 func (a *App) mount() {
 	a.NotFound(noRoute)
+	checked := os.Getenv("LLOCAL_CHECK") != ""
 	a.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		if checked {
+			w.Header().Set("X-LLocal-Writes", strconv.FormatInt(turns.Load(), 10))
+		}
 		if err := a.DB.PingContext(r.Context()); err != nil {
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return

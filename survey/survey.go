@@ -16,6 +16,8 @@ import (
 	"path"
 	"slices"
 	"strings"
+
+	"llocal.app/kit/recipe"
 )
 
 type Survey struct {
@@ -189,15 +191,7 @@ var (
 	maxList            = 200
 )
 
-// Folders that hold installed packages, build output or caches, not the app's own code.
-// mockup-sandbox is the design scratch space Replit Agent adds beside every app. llocal's
-// upload leaves the same folders out of what it commits.
-var SkipDirs = []string{
-	".git", "node_modules", "bower_components", "dist", "build", "out", ".next", ".nuxt", ".output", ".nitro", ".vercel",
-	".netlify", ".wrangler", ".svelte-kit", ".turbo", ".cache", ".parcel-cache", ".expo", ".tanstack",
-	"coverage", "__pycache__", ".venv", "venv", ".tox", ".mypy_cache", ".pytest_cache", ".ruff_cache",
-	"site-packages", "vendor", "target", "mockup-sandbox",
-}
+var SkipDirs = recipe.SkipDirs
 
 var (
 	codeExts = []string{".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".mts", ".cts", ".vue", ".svelte", ".astro", ".py", ".go", ".html", ".htm"}

@@ -54,6 +54,7 @@ func TestPrefixesStayQuick(t *testing.T) {
 		"requirements.txt": "fastapi\n",
 		"main.py":          strings.Repeat("from a import (\nx.include_router(y, prefix=f\"{A}/a\"\ny.include_router(x)\n", n) + "@x.get(\"/p\")\ndef p(): ...\n",
 		"main.go":          strings.Repeat("r.Route(\"/a\", func(r chi.Router) {\n\tr.Get(\"/b\", h)\n", n),
+		"loop.go":          "package main\n\nfunc f() {\n\tfor _, p := range []string{" + strings.Repeat("\"/a\", \"/*\", ", n) + "} {\n" + strings.Repeat("\t\tr.Get(p, h)\n", n) + "\t}\n}\n",
 		"server.js":        "const express = require('express')\n" + strings.Repeat("app.use('/a', router)\nrouter.use('/b', app)\nrouter.get('/c', h)\n", n),
 		"long.js": "const express = require('express')\napp.use('/" + strings.Repeat("x", 100<<10) + "', router)\nrouter.use('/b', app)\n" +
 			strings.Repeat("router.get('/c', h)\n", n),
@@ -89,6 +90,21 @@ func TestGoGroups(t *testing.T) {
 		"mux.go": "package main\n\nfunc gorilla() {\n\tr := mux.NewRouter()\n\tapi := r.PathPrefix(\"/api/\").Subrouter()\n\tapi.HandleFunc(\"/stock\", stock).Methods(\"GET\")\n}\n",
 	})
 	if got, want := routeList(run(t, dir)), []string{" /api/stock", "GET /v1/orders/{id}", "POST /v1/admin/refunds"}; !slices.Equal(got, want) {
+		t.Errorf("routes %q, want %q", got, want)
+	}
+}
+
+// TestGoLoops: routes added in a loop over a list of paths are each of those paths.
+func TestGoLoops(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, map[string]string{
+		"go.mod": "module shop\n\ngo 1.24.0\n",
+		"main.go": "package main\n\nfunc main() {\n\tapp.Route(\"/api/v1\", func(r chi.Router) {\n" +
+			"\t\tfor _, p := range []string{\"/items\", \"/items/\"} {\n\t\t\tr.Get(p, list)\n\t\t\tr.Post(p, create)\n\t\t}\n" +
+			"\t\tr.Get(\"/items/{id}\", one)\n\t})\n\tr.Get(p, stray)\n}\n",
+	})
+	want := []string{"GET /api/v1/items", "GET /api/v1/items/", "GET /api/v1/items/{id}", "POST /api/v1/items", "POST /api/v1/items/"}
+	if got := routeList(run(t, dir)); !slices.Equal(got, want) {
 		t.Errorf("routes %q, want %q", got, want)
 	}
 }

@@ -34,17 +34,33 @@ Each figure is the median of three runs. Before you read anything into it:
   (601 ms); 8 of 64,913 creates failed with a server error, where the original had none. The
   app didn't log why. The likely causes: the rewritten server wrote to the database on every
   request, reads included, and the kit let writes poll SQLite's lock, which under load makes
-  a few wait past its limit and fail. Both are fixed since: the instructions and the checker
-  now forbid a read that writes, and the kit queues writes in order. This was not measured
-  again.
+  a few wait past its limit and fail. Measured again with kit v0.1.3, which queues writes in
+  order: no request failed (0 of 53,903 creates over three runs, against 8 of 64,913), and
+  the slowest 1% of creates took 35 ms over 10 connections (was 636 ms) and 359 ms over 50
+  (was 1,839 ms). The price is the median: queued writers take turns, so over 50 connections
+  the median create took 111 ms (was 1.8 ms) and the app made 403 a second (was 561). The
+  checker now looks for a read that writes, but the version measured again still writes on
+  every API request, an update that changes nothing, which v0.1.3 didn't catch (later
+  versions do); and reads over 50 connections still have a slow 1% near 0.7 s, for a reason
+  not yet found.
 - **The agent removed features and asked about them.** Besides the login screens llocal
   replaces, it removed the admin screen for managing users and the superuser's view of
   everyone's items, and asked the person to confirm. Its new users table also couldn't take
   the old rows, which the checker now catches.
 - The original's four workers share memory that RSS counts in each (by PSS, 495.9 MB). The
   original checks its own sign-in token against Postgres on each request; the rewrite checks
-  a signed header. llocal's own servers, ARM machines that run apps under gVisor, may give
-  other figures.
+  a signed header. llocal's own servers, ARM machines that run apps under gVisor, give other
+  figures (below).
+
+The rewrite as llocal built and runs it (kit v0.1.3), on llocal's own server, under gVisor on
+an ARM machine with one CPU for the app, taken differently from the figures above:
+
+| on llocal's server | the rewrite |
+|---|---|
+| start to first good answer, by llocal's checker | 204 ms (226 ms on the Mac) |
+| the page through llocal's sign-in gateway, 1 connection | 842 a second, median 1.1 ms |
+| the page through llocal's sign-in gateway, 10 connections | 1,501 a second, median 4.5 ms |
+| the page through llocal's sign-in gateway, 50 connections | 1,259 a second, median 38.8 ms |
 
 That is one project, and nothing here is claimed for any other. The method, every figure
 and their ranges are in [BENCHMARK.md](BENCHMARK.md).
@@ -117,10 +133,11 @@ prints; `-data` picks another.
 go run llocal.app/kit/cmd/llocal-check .
 ```
 
-The checker runs the app the way llocal does and prints one line per check, each failure
-with what to do about it: it builds, starts on `$PORT` on every interface, writes only under
-`$LLOCAL_DATA`, makes its tables, has no login screen of its own, and its pages and routes
-answer without errors.
+The checker builds a fresh copy of what llocal would take in, runs it the way llocal does
+and prints one line per check, each failure with what to do about it: it builds, keeps every
+link inside the app, starts on `$PORT` on every interface, writes only under `$LLOCAL_DATA`,
+makes its tables, has no login screen of its own, and its pages and routes answer without
+errors.
 
 To bring an existing app, `go run llocal.app/kit/cmd/llocal-survey .` describes it (its
 framework, pages, routes, database, login and the keys it reads, never their values), and

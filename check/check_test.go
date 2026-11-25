@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -117,7 +118,7 @@ func TestStarterPasses(t *testing.T) {
 	for _, c := range r.Checks {
 		names = append(names, c.Name)
 	}
-	if got := strings.Join(names, " "); got != "recipe build old-database login start pages routes reads writes tables data-copy" {
+	if got := strings.Join(names, " "); got != "recipe build links old-database login start pages routes reads writes tables data-copy" {
 		t.Errorf("checks = %s", got)
 	}
 	if r.IdleMemory == 0 || r.StartMillis == 0 || r.DiskBytes == 0 {
@@ -125,12 +126,24 @@ func TestStarterPasses(t *testing.T) {
 	}
 }
 
+// gVisor's /proc/meminfo counts its processes' memory by the pages they use; tmpfs, where
+// the checker keeps the app's data, is in AnonPages and Shmem both.
+func TestInUseReadsGVisorsMeminfo(t *testing.T) {
+	meminfo := "MemTotal:        4194304 kB\nMemFree:         4000000 kB\nMemAvailable:    4000000 kB\nBuffers:               0 kB\n" +
+		"Cached:            12000 kB\nAnonPages:         30000 kB\nMapped:             5000 kB\nShmem:              7000 kB\n"
+	if got := inUse([]byte(meminfo)); got != (30000-7000+5000)<<10 {
+		t.Fatalf("in use %d", got)
+	}
+}
+
 func TestABuiltAppIsCheckedWithoutBuildingIt(t *testing.T) {
 	dir := starter(t, nil)
-	if r := Run(context.Background(), dir, survey(t)); !r.OK {
-		t.Fatalf("starter failed: %+v", r.Checks)
+	build := exec.Command("go", "build", "-o", "server", ".")
+	build.Dir = dir
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build: %v %s", err, out)
 	}
-	// Built: the server binary that Run's build left is what starts, so a broken source doesn't matter.
+	// Built: the server binary already there is what starts, so a broken source doesn't matter.
 	write(t, dir, map[string]string{"broken.go": "package main\n\nfunc init() { undefined() }\n"})
 	r := Built(context.Background(), dir, survey(t))
 	if !r.OK || slices.ContainsFunc(r.Checks, func(c Result) bool { return c.Name == "build" }) {
@@ -169,6 +182,64 @@ func TestOtherShapesPass(t *testing.T) {
 	}
 }
 
+// The checker builds what llocal would take in, not the working folder: a binding built by
+// hand in node_modules, which a clean install doesn't make, can't pass the build here when
+// it can't on llocal. The same with git, which leaves out what it ignores.
+func TestTheCheckBuildsACleanCopy(t *testing.T) {
+	for _, withGit := range []bool{false, true} {
+		dir := t.TempDir()
+		write(t, dir, map[string]string{
+			"llocal.json": `{"shape": "kept", "base": "python", "build": "test -f node_modules/binding.node && test -f local.cfg",
+				"start": "exec python3 -m http.server $PORT --bind 0.0.0.0", "port": ` + freePort(t) + `}`,
+			"local.cfg": "made by hand",
+		})
+		os.Mkdir(filepath.Join(dir, "node_modules"), 0o755)
+		write(t, dir, map[string]string{"node_modules/binding.node": "built by hand"})
+		if withGit {
+			write(t, dir, map[string]string{".gitignore": "local.cfg\n"})
+			if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
+				t.Fatalf("git init: %v %s", err, out)
+			}
+		}
+		r := Run(context.Background(), dir, Survey{})
+		i := slices.IndexFunc(r.Checks, func(c Result) bool { return c.Name == "build" })
+		if i < 0 || r.Checks[i].OK || !strings.Contains(r.Checks[i].Reason, "test -f node_modules/binding.node") {
+			t.Fatalf("git %v: checks %+v", withGit, r.Checks)
+		}
+	}
+}
+
+// What llocal refuses, the checker refuses: a link in the project, which the upload refuses,
+// and a link the build left that points outside the app, which llocal's build refuses.
+func TestLinksLlocalRefusesFail(t *testing.T) {
+	dir := starter(t, nil)
+	if err := os.Symlink("index.html", filepath.Join(dir, "web", "home.html")); err != nil {
+		t.Fatal(err)
+	}
+	r := Run(context.Background(), dir, survey(t))
+	if r.OK || r.Checks[0].Name != "upload" || r.Checks[0].Reason != "web/home.html is a link: llocal takes only files and folders, so put the file itself there" {
+		t.Fatalf("project link: %+v", r.Checks)
+	}
+	dir = starter(t, nil)
+	edit(t, filepath.Join(dir, "llocal.json"), `"build": "go build -o server ."`, `"build": "go build -o server . && ln -s /etc/hosts hosts"`)
+	r = Run(context.Background(), dir, survey(t))
+	i := slices.IndexFunc(r.Checks, func(c Result) bool { return c.Name == "links" })
+	if r.OK || i < 0 || !strings.HasPrefix(r.Checks[i].Reason, "hosts is a link to /etc/hosts, an absolute path") {
+		t.Fatalf("build link: %+v", r.Checks)
+	}
+}
+
+// A standard app's node_modules only builds its front end, so llocal doesn't keep it and
+// its size on disk leaves it out.
+func TestAStandardAppsDiskLeavesOutNodeModules(t *testing.T) {
+	dir := starter(t, nil)
+	edit(t, filepath.Join(dir, "llocal.json"), `"build"`, `"install": "mkdir -p node_modules && dd if=/dev/zero of=node_modules/big bs=1 count=0 seek=1073741824 2>/dev/null", "build"`)
+	r := Run(context.Background(), dir, survey(t))
+	if !r.OK || r.DiskBytes == 0 || r.DiskBytes >= 1<<30 {
+		t.Fatalf("disk %d: %+v", r.DiskBytes, r.Checks)
+	}
+}
+
 func TestBrokenVariantsFail(t *testing.T) {
 	startTimeout = 3 * time.Second
 	for _, tc := range []struct {
@@ -195,6 +266,10 @@ func TestBrokenVariantsFail(t *testing.T) {
 			"main.go": notesApp(``)}},
 		{"a read that writes", "reads", "GET /api/notes wrote to the database", map[string]string{
 			"main.go": notesApp(`app.DB.ExecContext(r.Context(), "INSERT INTO notes (body, user_id, by_name) VALUES ('seen', ?, '')", kit.CurrentUser(r).ID)`)}},
+		// The person saved again on every request, as it was: nothing changes, but SQLite's writer is taken.
+		{"a read that writes nothing new", "reads", "GET /api/notes wrote to the database", map[string]string{
+			"main.go": notesApp(`var id int64
+		app.DB.QueryRowContext(r.Context(), "UPDATE notes SET by_name = ? WHERE user_id = ? RETURNING id", kit.CurrentUser(r).Name, kit.CurrentUser(r).ID).Scan(&id)`)}},
 		{"a column the old table lacks", "data-copy", `can't fill table "notes": its column llocal_id is required and the old notes table has no llocal_id`, map[string]string{
 			"db/migrations/001_notes.sql": "CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT NOT NULL, user_id TEXT NOT NULL, by_name TEXT NOT NULL, llocal_id TEXT NOT NULL);\n"}},
 	} {

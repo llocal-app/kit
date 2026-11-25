@@ -44,12 +44,14 @@ type Result struct {
 type Report struct {
 	OK     bool     `json:"ok"`
 	Checks []Result `json:"checks"`
-	// IdleMemory is the app's resident memory after the checks' requests, in bytes. It is
-	// left out where the machine has no ps.
+	// IdleMemory is the memory the app holds after the checks' requests, in bytes: under
+	// gVisor, as on llocal, what its sandbox frees when it stops; elsewhere its resident
+	// memory. It is left out where neither can be read.
 	IdleMemory int64 `json:"idle_memory_bytes,omitempty"`
 	// StartMillis is how long the app took to answer its health check.
 	StartMillis int64 `json:"start_ms,omitempty"`
-	// DiskBytes is the app's folder once built, installed packages and all.
+	// DiskBytes is the app's folder once built, as llocal keeps it: the packages it runs with,
+	// but not a standard app's node_modules, which only builds its front end.
 	DiskBytes int64 `json:"disk_bytes,omitempty"`
 }
 
@@ -155,7 +157,21 @@ func (c *checker) add(name string, err error) bool {
 	return err == nil
 }
 
+// run checks the app. Unless it is built already, it first builds, as llocal does, a copy of
+// what llocal would take in, so nothing in the working folder that an upload leaves out,
+// like node_modules, can make a check pass here that fails on llocal.
 func (c *checker) run(ctx context.Context) {
+	if !c.built {
+		tmp, err := os.MkdirTemp("", "llocal-check-")
+		if c.failed("upload", err) {
+			return
+		}
+		defer os.RemoveAll(tmp)
+		if c.failed("upload", upload(c.dir, tmp)) {
+			return
+		}
+		c.dir = tmp
+	}
 	var err error
 	if c.root, err = os.OpenRoot(c.dir); c.failed("recipe", err) {
 		return
@@ -164,8 +180,13 @@ func (c *checker) run(ctx context.Context) {
 	if c.rec, err = recipe.Load(filepath.Join(c.dir, "llocal.json")); !c.add("recipe", err) {
 		return
 	}
-	for _, step := range [][2]string{{"install", c.rec.Install}, {"build", c.rec.Build}} {
-		if step[1] != "" && !c.built && !c.add(step[0], c.sh(ctx, step[1], os.Environ())) {
+	if !c.built {
+		for _, step := range [][2]string{{"install", c.rec.Install}, {"build", c.rec.Build}} {
+			if step[1] != "" && !c.add(step[0], c.sh(ctx, step[1], append(os.Environ(), recipe.BuildEnv...))) {
+				return
+			}
+		}
+		if !c.add("links", Finish(c.dir)) {
 			return
 		}
 	}
@@ -247,8 +268,7 @@ func (c *checker) serve(ctx context.Context) {
 		c.add("reads", c.reads(ctx, db, pages))
 	}
 	time.Sleep(time.Second)
-	c.report.IdleMemory = p.memory()
-	p.stop()
+	c.report.IdleMemory = p.stopMeasured()
 	c.add("writes", c.writes(before))
 	tables := c.tables()
 	if len(tables) > 0 && c.add("tables", c.missingTables(db, tables)) && slices.ContainsFunc(tables, func(t Table) bool { return len(t.Columns) > 0 }) {
@@ -269,6 +289,15 @@ func (c *checker) env(data, tmp string, jwks []byte) []string {
 		"TZ=America/Denver",
 		// .pyc files are a cache, not data the app loses when llocal throws its folder away.
 		"PYTHONDONTWRITEBYTECODE=1",
+		// A kit app's /healthz then says how many turns its writes have taken.
+		"LLOCAL_CHECK=1",
+	}
+	// Corepack's settings, as llocal's, so a start command that runs pnpm finds the one the
+	// build fetched.
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "COREPACK_") {
+			env = append(env, kv)
+		}
 	}
 	for _, s := range c.rec.Secrets {
 		env = append(env, s+"="+cmp.Or(os.Getenv(s), "llocal-check-placeholder"))
@@ -370,7 +399,8 @@ func (c *checker) routes(ctx context.Context) error {
 }
 
 // reads sends each page and GET route again, now that the test person has been seen once,
-// and fails on one that writes to the database.
+// and fails on one that writes to the database: one that changes it, or, in an app on this
+// kit, one that takes the writer's turn, as a write that changes nothing does.
 func (c *checker) reads(ctx context.Context, file string, pages []Route) error {
 	db, err := sql.Open("sqlite", file+"?_pragma=busy_timeout(5000)")
 	if err != nil {
@@ -388,10 +418,15 @@ func (c *checker) reads(ctx context.Context, file string, pages []Route) error {
 		err := conn.QueryRowContext(ctx, "PRAGMA data_version").Scan(&v)
 		return v, err
 	}
+	turns := func() string {
+		a, _ := c.do(ctx, http.MethodGet, c.rec.HealthPath(), false)
+		return a.turns
+	}
 	was, err := version()
 	if err != nil {
 		return err
 	}
+	taken := turns()
 	for _, r := range slices.Concat(pages, c.survey.Routes) {
 		if r.Method != "" && !strings.EqualFold(r.Method, http.MethodGet) {
 			continue
@@ -400,8 +435,8 @@ func (c *checker) reads(ctx context.Context, file string, pages []Route) error {
 		if _, err := c.do(ctx, http.MethodGet, p, true); err != nil {
 			continue
 		}
-		if now, err := version(); err != nil || now != was {
-			return cmp.Or(err, fmt.Errorf("GET %s wrote to the database: a request that only reads must not write, since every write waits for SQLite's one writer; record a person on their first visit only, not on every request", p))
+		if now, err := version(); err != nil || now != was || turns() != taken {
+			return cmp.Or(err, fmt.Errorf("GET %s wrote to the database: a request that only reads must not write, not even a write that changes nothing, since every write waits for SQLite's one writer; record a person on their first visit only, not on every request", p))
 		}
 	}
 	return nil
@@ -417,12 +452,14 @@ func joined(failed []string) error {
 	return fmt.Errorf("%s (and %d more)", failed[0], len(failed)-1)
 }
 
-// answer is what the app answered: its status, the first line of its body, and whether
-// the kit said it has no route there (X-LLocal-Route: none).
+// answer is what the app answered: its status, the first line of its body, whether the
+// kit said it has no route there (X-LLocal-Route: none), and the writer's turns its writes
+// have taken, which a kit app's /healthz says when checked.
 type answer struct {
 	status  int
 	line    string
 	noRoute bool
+	turns   string
 }
 
 func (c *checker) do(ctx context.Context, method, p string, signed bool) (answer, error) {
@@ -450,7 +487,7 @@ func (c *checker) do(ctx context.Context, method, p string, signed bool) (answer
 	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	return answer{resp.StatusCode, firstLine(b), resp.Header.Get("X-LLocal-Route") == "none"}, nil
+	return answer{resp.StatusCode, firstLine(b), resp.Header.Get("X-LLocal-Route") == "none", resp.Header.Get("X-LLocal-Writes")}, nil
 }
 
 type stamp struct{ size, mod int64 }
@@ -557,7 +594,7 @@ func (c *checker) login() error {
 	})
 }
 
-// disk is the size of every regular file in the app but .git, installed packages included.
+// disk is the size of every regular file in the app but .git.
 func (c *checker) disk() (int64, error) {
 	var n int64
 	err := fs.WalkDir(c.root.FS(), ".", func(p string, d fs.DirEntry, err error) error {

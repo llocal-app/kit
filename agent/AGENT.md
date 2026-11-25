@@ -12,12 +12,14 @@ for free and says what is left before the app fits its standard shape, and how m
 was left at the upload before is done. You make the changes here, on the person's computer,
 check them, and upload again, until nothing is left and llocal builds the app.
 
-llocal's own agent can do the conversion on llocal's side instead (`request_convert`), free,
-while what is left is small: within the free allowance for an app's first piece of work by
-llocal's AI. `get_plan`'s `estimate` says whether it is (`within_allowance`). Over it,
-llocal's agent won't start, since paying for more isn't available yet: you do the heavy part,
-from llocal's brief (`get_brief`), and once what is left is within the allowance, llocal's
-agent can finish it if the person chooses. Tell the person this before you start.
+llocal's own agent can do the conversion on llocal's side instead (`request_convert`), free
+to the person, while what is left is small: within the free allowance for an app's first
+piece of work by llocal's AI. It usually takes 10 to 30 minutes. `get_plan`'s `estimate` says
+whether it is (`within_allowance`). Over it, llocal's agent won't start, since paying for more
+isn't available yet: you do the heavy part, from llocal's brief (`get_brief`), and once what
+is left is within the allowance, llocal's agent can finish it if the person chooses. Tell the
+person this before you start. Handing work to llocal's agent is always the person's choice:
+ask them, and call `request_convert` only after they say yes.
 
 Everything up to the upload can be done before the person can sign in to llocal: see "Not
 signed in yet".
@@ -29,14 +31,15 @@ signed in yet".
   OpenAI's full-size GPT-5 or later, Gemini Pro, or one of their class. Small, fast models
   get it wrong: Claude Haiku, any model whose name has mini, nano, lite, flash or luna in it,
   and any its maker calls fast, small or for simpler tasks. Your instructions or your tool's
-  settings name the model you are. Tell the person that name and whether it is one of these;
-  if you can't tell, ask them which model their tool is set to. If it is one of these, don't
-  rewrite the server or the data. Do the parts that are safe: the scan and the plan (steps 1
-  and 2), `llocal.json` for an app that needs nothing else (a static site, or one already on
-  one SQLite file), and the upload. Then offer the person llocal's own agent
+  settings name the model you are; a family name alone (GPT-5, Claude, Gemini) doesn't say
+  which. Tell the person that name and whether it is one of these; if you can't tell, ask
+  them which model their tool is set to. If it is one of these, don't rewrite the server or
+  the data. Do the parts that are safe: the scan and the plan (steps 1 and 2), `llocal.json`
+  for an app that needs nothing else (a static site, or one already on one SQLite file), and
+  the upload. Then offer the person llocal's own agent
   (`request_convert`, free while the work is within its allowance) or a larger model in
-  their AI tool. llocal's `get_brief` asks for your model's name and refuses the brief to a
-  small one.
+  their AI tool. llocal's `get_brief` asks which model you are, and can't check the answer:
+  give the exact name.
 - **llocal's tools** (`whoami`, `create_app`, `create_upload` and the rest) come from adding
   llocal to the person's AI tool, with the line for it at
   https://llocal.app/agent/connect.json, and signing in, in their browser. If you don't have
@@ -145,8 +148,12 @@ On macOS, Linux or WSL, with Go installed:
 go run llocal.app/kit/cmd/llocal-check@latest -survey survey.json .
 ```
 
-Fix every `FAIL` line and run it again. On Windows without WSL, or without Go, skip this step:
-llocal runs the same checks when it builds, and their answer is the one that counts.
+Fix every `FAIL` line and run it again. Each run installs and builds a fresh copy of what the
+upload would send, as llocal does, so it takes minutes. While you fix how the app runs, once
+you have built it in its folder, `-built` checks the folder as it is, quicker; it skips the
+upload, install, build and links checks, so the last check before an upload is without
+`-built`. On Windows without WSL, or without Go, skip this step: llocal runs the same
+checks when it builds, and their answer is the one that counts.
 
 ## 5. Upload
 
@@ -158,7 +165,9 @@ git archive --format=zip -o llocal-upload.zip HEAD && curl --fail-with-body --da
 ```
 
 On Windows, in PowerShell, write `curl.exe` for `curl`. `git archive` sends what is
-committed, so commit first; `.env` files and `node_modules` stay behind. If the app should
+committed, so commit first; `node_modules` and uncommitted files stay behind. A committed
+`.env` goes up too: llocal keeps it out of the code and offers its values to the person as
+keys. If the app should
 start with data from a file that isn't committed (a `.db`, `.sqlite` or `.csv`), add
 `--add-file=<file>` to `git archive`: llocal puts data files in place before the first start.
 The answer says what llocal did with the archive. Once the app has a valid `llocal.json`,
@@ -171,8 +180,9 @@ before is done, and `left` what is still left; tell the person.
 
 - **Nothing is left, or the upload has a valid `llocal.json`:** llocal builds it. Go on to
   step 7.
-- **`within_allowance`:** tell the person llocal's agent can finish it for free
-  (`request_convert`), or you can carry on; it is their choice.
+- **`within_allowance`:** ask the person whether llocal's agent should finish it
+  (`request_convert`: on llocal's side, free to them, usually in 10 to 30 minutes) or you
+  carry on, and wait for their answer.
 - **Otherwise:** call `get_brief` again and go back to step 3.
 
 ## 7. Build, and fix what fails
@@ -188,8 +198,9 @@ before is done, and `left` what is still left; tell the person.
    log), fix the code, commit, and call `push`: a new address, and llocal builds the archive
    as soon as it arrives.
 4. **When `deployment_status` carries an `offer`, llocal's checks failed twice in a row.**
-   Stop fixing. Tell the person, and offer llocal's own agent (`request_convert`) before you
-   try again. It is the same offer the app's page makes.
+   Stop fixing. Tell the person, and ask whether llocal's own agent should take over
+   (`request_convert`; `offer` says what it is) or you try again. It is the same offer the
+   app's page makes.
 
 `in review` means a person at llocal is checking a change llocal's agent made to a live app.
 Wait for it. A refusal that names one of llocal's limits (apps, guests, invitations, AI, the

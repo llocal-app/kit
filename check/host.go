@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -49,15 +50,62 @@ func startProcess(dir, command string, env []string) (*process, error) {
 	return p, nil
 }
 
-// stop ends the app and returns once it has exited. It is safe to call twice.
+// stop ends the app and everything it started, and returns once they have exited. It is
+// safe to call twice.
 func (p *process) stop() {
-	syscall.Kill(-p.cmd.Process.Pid, syscall.SIGTERM)
-	select {
-	case <-p.done:
-	case <-time.After(5 * time.Second):
-		syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL)
-		<-p.done
+	group := -p.cmd.Process.Pid
+	syscall.Kill(group, syscall.SIGTERM)
+	if !gone(group, 5*time.Second) {
+		syscall.Kill(group, syscall.SIGKILL)
+		gone(group, time.Second)
 	}
+	<-p.done
+}
+
+// gone waits up to d for every process in group to have exited, and says whether they have.
+func gone(group int, d time.Duration) bool {
+	for end := time.Now().Add(d); time.Now().Before(end); time.Sleep(20 * time.Millisecond) {
+		if syscall.Kill(group, 0) != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// stopMeasured stops the app and returns the memory it held: under gVisor, whose resident
+// memory counts each 2 MB a page fault set aside, what the sandbox's memory in use fell by;
+// elsewhere, the resident memory ps reports.
+func (p *process) stopMeasured() int64 {
+	before, gvisor := sandboxMemory()
+	if !gvisor {
+		n := p.memory()
+		p.stop()
+		return n
+	}
+	p.stop()
+	after, _ := sandboxMemory()
+	return max(0, before-after)
+}
+
+// sandboxMemory is the memory gVisor's sandbox holds for its processes, files in tmpfs left
+// out; ok is false outside gVisor, the only kernel with a /proc/sentry-meminfo.
+func sandboxMemory() (n int64, ok bool) {
+	if _, err := os.Stat("/proc/sentry-meminfo"); err != nil {
+		return 0, false
+	}
+	b, err := os.ReadFile("/proc/meminfo")
+	return inUse(b), err == nil
+}
+
+// inUse reads /proc/meminfo as gVisor writes it: its processes' memory is AnonPages, which
+// counts tmpfs too, less Shmem, which is tmpfs, plus Mapped, the file pages it holds.
+func inUse(meminfo []byte) int64 {
+	kb := map[string]int64{}
+	for _, line := range strings.Split(string(meminfo), "\n") {
+		k, v, _ := strings.Cut(line, ":")
+		kb[k], _ = strconv.ParseInt(strings.TrimSuffix(strings.TrimSpace(v), " kB"), 10, 64)
+	}
+	return (kb["AnonPages"] - kb["Shmem"] + kb["Mapped"]) << 10
 }
 
 // memory is the resident memory of the app and everything it started, or 0 where the

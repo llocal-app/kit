@@ -48,7 +48,7 @@ upload it, and repeat.
    llocal builds it, runs the same checker and starts it.
 
 llocal's own AI can do the last mile on llocal's side, for free, once what is left is within
-an app's free allowance for llocal's AI.
+an app's free allowance for llocal's AI, if the person chooses it when asked.
 
 ## Rules
 
@@ -124,6 +124,12 @@ an app's free allowance for llocal's AI.
 
 Commands run with `/bin/sh -c` in the app's root folder. The full schema is
 `kit/recipe/llocal.schema.json`; `llocal-check` applies the rules.
+
+pnpm works too (`pnpm install --frozen-lockfile`). Name its version in `package.json`'s
+`packageManager`, like `"pnpm@10.33.0"`, so the builder's computer and llocal use the same
+one. Since version 10, pnpm runs a package's build script, like a native module's
+(`better-sqlite3`), only where the project allows it: allow it in the project's
+`pnpm-workspace.yaml`, and commit that.
 
 ## What the app gets from llocal
 
@@ -582,15 +588,24 @@ only the routes it has.
 go run llocal.app/kit/cmd/llocal-check@latest -survey survey.json .
 ```
 
-It runs the app the way llocal will and prints one line per check. Every `FAIL` line says
-what is wrong and what to do. llocal runs the same checker on every version of an app with a
-server before it starts, and after two failed checks, while the app is within its free
-allowance, llocal's AI offers to do the conversion itself.
+It copies what llocal would take in (the files git would commit, without installed packages
+or build output), installs and builds the copy afresh with the settings llocal's build uses,
+runs the app the way llocal will, and prints one line per check. The fresh install and build
+take minutes. Every `FAIL` line says what is wrong and what to do. llocal runs the same
+checker on every version of an app with a server before it starts, and after two failed
+checks, while the app is within its free allowance, llocal's AI offers to do the conversion
+itself.
+
+`-built` checks the folder as it is, with no copy, install or build: quicker for checking
+again how an app you have just built runs, but it can pass what llocal's build fails. The
+last check before an upload is always without `-built`.
 
 | check | passes when |
 |-------|-------------|
+| `upload` | what llocal would take in is only files and folders. A committed link fails: put the file itself there |
 | `recipe` | `llocal.json` follows the rules above |
 | `install`, `build` | the commands finish |
+| `links` | each link the build leaves points, by a relative path, at something inside the app, which llocal turns into a copy. A link by an absolute path, out of the app, to nothing or round in a circle fails: remove it, put the file itself there, or have the build make what it points to |
 | `old-database` | no file mentions the old database's host (from the survey) |
 | `static` | a static app's folder has `index.html` |
 | `login` | a standard app's front end has no password field |
@@ -598,12 +613,14 @@ allowance, llocal's AI offers to do the conversion itself.
 | `start` | the app answers its health check on `$PORT` on all interfaces within a minute, as a real start must (`/healthz` for kit apps, `/` otherwise) |
 | `pages` | each page in the survey (or `/`) answers below 400 |
 | `routes` | each server route in the survey answers below 500 and is still there: not a 405 to its own method, nor the kit's 404 for an address it has no route for (a route's own 404 for a record, like `/api/orders/1`, is what an empty database answers). The old login's routes, and routes marked `removed`, may be gone |
-| `reads` | a standard app's pages and `GET` routes, requested a second time, write nothing to the database |
+| `reads` | a standard app's pages and `GET` routes, requested a second time, write nothing to the database, not even a write that changes nothing |
 | `writes` | the app wrote nothing inside its own folder, outside `persistent` and `node_modules` |
 | `tables` | every table in the survey exists in `$LLOCAL_DATA/app.db` |
 | `data-copy` | a row of each old table, with the columns the survey read, goes into the new table of its name by column name, the way llocal's data copy works. Tables `db/import.sql` fills are left to it |
 
-It also prints the app's memory at idle, how long it took to start, and its size on disk.
+It also prints the app's memory at idle (under gVisor, as on llocal, what the app frees when
+it stops; elsewhere its resident memory), how long it took to start, and its size on disk as
+llocal keeps it (without a standard app's `node_modules`, which only builds its front end).
 Requests are sent signed in as a test person, the way llocal sends them: `GET` for pages, and
 each route's method with the JSON body `{}`, which a route answers with 400 when it is missing
 something, never 500. Each secret is passed from your environment if set, or a

@@ -333,7 +333,9 @@ var (
 	quotedWord   = compile(`["'](\w+)["']`)
 	flaskParam   = compile(`<(?:\w+:)?(\w+)>`)
 	typedParam   = compile(`\{(\w+):[^}]*\}`)
-	goRoute      = compile(`(\w*)\.(Get|Post|Put|Patch|Delete|GET|POST|PUT|PATCH|DELETE|HandleFunc|Handle)\(\s*"(?:(GET|POST|PUT|PATCH|DELETE) +)?(/[^"]*)"`)
+	goRoute      = compile(`(\w*)\.(Get|Post|Put|Patch|Delete|GET|POST|PUT|PATCH|DELETE|HandleFunc|Handle)\(\s*(?:"(?:(GET|POST|PUT|PATCH|DELETE) +)?(/[^"]*)"|(\w+)\s*,)`)
+	goLoop       = compile(`\bfor\s+_\s*,\s*(\w+)\s*:?=\s*range\s+\[\]string\s*\{([\s,]*(?:"[^"\n]*"[\s,]*)*)\}\s*\{`)
+	goPath       = compile(`"(/[^"]*)"`)
 	goGroup      = compile(`(\w+)\s*:?=\s*(\w+)\.(?:Group|PathPrefix)\(\s*"(/[^"]*)"`)
 	goMount      = compile(`(\w+)\.Mount\(\s*"(/[^"]*)"\s*,\s*(\w+)\s*\)`)
 	goBlock      = compile(`(\w*)\.Route\(\s*"(/[^"]*)"\s*,\s*func\s*\(\s*\w+\s+[\w.*]+\s*\)\s*\{`)
@@ -637,7 +639,8 @@ func pyModule(mod string, modules map[string]string) string {
 
 // goRoutes reads a Go server's routes, under the prefixes of the chi Route blocks around
 // them and of the routers they are added to: r.Route("/api", func(r chi.Router) {...}),
-// api := r.Group("/api"), r.PathPrefix("/api").Subrouter(), r.Mount("/api", api).
+// api := r.Group("/api"), r.PathPrefix("/api").Subrouter(), r.Mount("/api", api). A route
+// added in a loop over a list of paths, for _, p := range []string{...}, is each of them.
 func (p *project) goRoutes(n, t string) {
 	x := newPrefixes()
 	for _, m := range goGroup.FindAllStringSubmatch(t, -1) {
@@ -646,9 +649,13 @@ func (p *project) goRoutes(n, t string) {
 	for _, m := range goMount.FindAllStringSubmatch(t, -1) {
 		x.under[ref{n, m[3]}] = mountPoint{by: ref{n, m[1]}, prefix: strings.TrimSuffix(m[2], "/")}
 	}
-	s := scopes{t: t, blocks: map[int]string{}}
+	s := scopes{t: t, blocks: map[int]opened{}}
 	for _, loc := range goBlock.FindAllStringSubmatchIndex(t, -1) {
-		s.blocks[loc[1]-1] = cut(x.of(ref{n, sub(t, loc, 1)}) + strings.TrimSuffix(sub(t, loc, 2), "/"))
+		s.blocks[loc[1]-1] = opened{prefix: cut(x.of(ref{n, sub(t, loc, 1)}) + strings.TrimSuffix(sub(t, loc, 2), "/"))}
+	}
+	for _, loc := range goLoop.FindAllStringSubmatchIndex(t, -1) {
+		paths := firsts(goPath, sub(t, loc, 2))
+		s.blocks[loc[1]-1] = opened{name: sub(t, loc, 1), paths: paths[:min(len(paths), maxLoop)]}
 	}
 	for _, loc := range goRoute.FindAllStringSubmatchIndex(t, -1) {
 		if len(p.s.Routes) > maxList {
@@ -659,35 +666,70 @@ func (p *project) goRoutes(n, t string) {
 		if f := sub(t, loc, 2); method == "" && !strings.HasPrefix(f, "Handle") {
 			method = strings.ToUpper(f)
 		}
-		pth := strings.ReplaceAll(sub(t, loc, 4), "...}", "}")
-		if pth, ok := colonPath(join(string(s.scope)+x.of(ref{n, sub(t, loc, 1)}), pth)); ok {
-			p.route(n, method, pth)
+		paths := []string{sub(t, loc, 4)}
+		if v := sub(t, loc, 5); v != "" {
+			paths = s.paths(v)
+		}
+		prefix := s.scope() + x.of(ref{n, sub(t, loc, 1)})
+		for _, pth := range paths {
+			if pth, ok := colonPath(join(prefix, strings.ReplaceAll(pth, "...}", "}"))); ok {
+				p.route(n, method, pth)
+			}
 		}
 	}
 }
 
-// scopes walks Go code once, keeping scope: the prefixes of the Route blocks open where the
-// walk is, each from its opening brace to its closing one. Braces in strings, runes and
-// line comments don't count, and blocks deeper than maxDepth add nothing.
+// maxLoop is the most paths a loop adds a route at, so a hostile file's loops stay quick.
+const maxLoop = 8
+
+// opened is what a brace opens: a Route block's prefix, or a loop's variable and its paths.
+type opened struct {
+	prefix string
+	name   string
+	paths  []string
+}
+
+// scopes walks Go code once, keeping what each brace still open opened, from its opening
+// brace to its closing one. Braces in strings, runes and line comments don't count, and
+// braces deeper than maxDepth open nothing.
 type scopes struct {
 	t      string
-	blocks map[int]string // a Route block's opening brace -> its prefix
+	blocks map[int]opened // by its opening brace
 	i      int
-	scope  []byte
-	open   []int // for each brace still open, the length of scope before it
+	open   []opened
+}
+
+// scope is the prefixes of the Route blocks open where the walk is.
+func (s *scopes) scope() string {
+	var b strings.Builder
+	for _, o := range s.open[:min(len(s.open), maxDepth)] {
+		b.WriteString(o.prefix)
+	}
+	return b.String()
+}
+
+// paths is what the loop variable name takes where the walk is.
+func (s *scopes) paths(name string) []string {
+	for k := min(len(s.open), maxDepth) - 1; k >= 0; k-- {
+		if s.open[k].name == name {
+			return s.open[k].paths
+		}
+	}
+	return nil
 }
 
 func (s *scopes) to(end int) {
 	for ; s.i < end; s.i++ {
 		switch c := s.t[s.i]; c {
 		case '{':
-			s.open = append(s.open, len(s.scope))
-			if len(s.open) <= maxDepth {
-				s.scope = append(s.scope, s.blocks[s.i]...)
+			var o opened
+			if len(s.open) < maxDepth {
+				o = s.blocks[s.i]
 			}
+			s.open = append(s.open, o)
 		case '}':
 			if k := len(s.open) - 1; k >= 0 {
-				s.scope, s.open = s.scope[:s.open[k]], s.open[:k]
+				s.open = s.open[:k]
 			}
 		case '"', '\'':
 			for s.i++; s.i < len(s.t) && s.t[s.i] != c && s.t[s.i] != '\n'; s.i++ {

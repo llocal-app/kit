@@ -19,6 +19,22 @@ import (
 // waits this long for a real start and llocal's checker for its own, so they agree.
 const StartWait = time.Minute
 
+// BuildEnv is what llocal adds to the environment of an app's install and build, and its
+// checker to its own: pnpm lays node_modules out flat, as npm does, rather than as links
+// into its store. pnpm reads npm_config_ before version 11 and pnpm_config_ since; npm
+// warns that it doesn't know node-linker, which is pnpm's.
+var BuildEnv = []string{"npm_config_node_linker=hoisted", "pnpm_config_node_linker=hoisted"}
+
+// SkipDirs are folders that hold installed packages, build output or caches, not the app's
+// own code: an upload leaves them out, and the survey doesn't read them. mockup-sandbox is
+// the design scratch space Replit Agent adds beside every app.
+var SkipDirs = []string{
+	".git", "node_modules", "bower_components", "dist", "build", "out", ".next", ".nuxt", ".output", ".nitro", ".vercel",
+	".netlify", ".wrangler", ".svelte-kit", ".turbo", ".cache", ".parcel-cache", ".expo", ".tanstack",
+	"coverage", "__pycache__", ".venv", "venv", ".tox", ".mypy_cache", ".pytest_cache", ".ruff_cache",
+	"site-packages", "vendor", "target", "mockup-sandbox",
+}
+
 type Recipe struct {
 	Schema        string     `json:"$schema,omitempty"`
 	Shape         string     `json:"shape"`

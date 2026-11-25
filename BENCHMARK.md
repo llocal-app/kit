@@ -1,7 +1,7 @@
 # One project, before and after
 
-How the figures in the README were taken, and all of them. They are from one trial, on
-2026-11-25, of one open-source project:
+How the figures in the README were taken, and all of them. They are from one trial, in two
+parts on 2026-11-25, of one open-source project:
 [fastapi/full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template)
 at commit 77e550a (MIT licence; not affiliated with llocal). Nothing here is claimed for any
 other project.
@@ -42,7 +42,8 @@ other project.
 - The load generator (oha 1.17.0) and the client that timed the start ran on VM CPUs 8 to
   15, outside both.
 - llocal's own servers are ARM machines that run apps under gVisor. These figures are not
-  from there, and llocal's sign-in gateway is not in them.
+  from there, and llocal's sign-in gateway is not in them, except in "On llocal's server",
+  at the end.
 
 ## One run
 
@@ -157,10 +158,56 @@ every sign-in was killed for want of memory (its password check needs more than 
   the person's row each time). With SQLite's one writer, that is why its median write is fast
   and its slowest 1% slow.
 
-Since then, and not measured again: llocal's instructions say a request that only reads never
-writes, and `llocal-check` fails an app whose reads write; the kit queues writes for SQLite's
-one writer in the order they come, where before they polled for its lock and, under load, a
-few could wait past its 5-second limit and fail; and the kit logs every answer of 500 or more.
+Since then: llocal's instructions say a request that only reads never writes, and
+`llocal-check` fails an app whose reads change the database; the kit queues writes for
+SQLite's one writer in the order they come, where before they polled for its lock and, under
+load, a few could wait past its 5-second limit and fail; and the kit logs every answer of 500
+or more. The rewrite was measured again with that kit, next.
+
+## After, kit v0.1.3
+
+The agent's own second version, the one llocal built and runs. Besides
+fixing its build for llocal, it changed how the server records the person: it now updates
+their row by llocal id (`UPDATE "user" SET email = ? WHERE llocal_id = ? RETURNING id`)
+instead of inserting or updating it, and still does so on every API request, reads
+included. The update changes nothing for a known person, so `llocal-check@v0.1.3`, which
+watched only for a read that changes the database, passed it. Later versions fail such a
+read too.
+
+It was built as llocal's runner builds it: `git archive` of its commit, the kit's v0.1.3
+tree in place of `llocal.app/kit` (`go mod edit -replace`), then its `llocal.json`'s
+`npm ci --prefix frontend` and `npm run build --prefix frontend && go build -o server .`, in
+the same copy of llocal's `go` base image. It was measured as above, on the same Mac with
+the same harness, three runs. A first try on a heavily loaded machine was thrown away; of
+the three kept, run 3 ran while the machine was busier (load average 5.7 to 11.2), and the
+ranges carry it.
+
+| measure | median (lowest-highest) |
+|---|---|
+| start to first good answer | 196 ms (192-219) |
+| memory at rest, app: RSS | 15.9 MB (15.9-16.1) |
+| memory at rest, app: PSS | 15.9 MB (15.9-16.1) |
+| peak memory during the run, app | 393.2 MB (223.8-410.3) |
+
+| request | conns | good/s | median ms | p99 ms | processor time per good answer | not 2xx (all runs) |
+|---|---|---|---|---|---|---|
+| page | 1 | 3409 (2880-3459) | 0.3 (0.3-0.3) | 0.5 (0.5-0.8) | app 0.22 ms (0.22-0.25) | 0 |
+| page | 10 | 5245 (4094-5447) | 1.8 (1.8-2.3) | 4.7 (4.6-7.0) | app 0.19 ms (0.18-0.24) | 0 |
+| page | 50 | 5021 (4324-5298) | 9.7 (9.2-11.3) | 23.4 (21.4-28.7) | app 0.20 ms (0.19-0.23) | 0 |
+| list | 1 | 1224 (830-1262) | 0.7 (0.7-1.0) | 1.7 (1.6-3.4) | app 0.73 ms (0.73-1.07) | 0 |
+| list | 10 | 1474 (1276-1567) | 6.3 (5.9-7.0) | 11.5 (10.9-17.0) | app 0.68 ms (0.64-0.78) | 0 |
+| list | 50 | 1470 (1020-1556) | 20.5 (19.7-28.4) | 690.6 (674.0-978.9) | app 0.68 ms (0.64-0.98) | 0 |
+| create | 1 | 476 (240-508) | 2.0 (1.9-3.8) | 3.5 (3.1-10.0) | app 0.87 ms (0.86-1.73) | 0 |
+| create | 10 | 471 (240-539) | 20.1 (17.8-38.7) | 34.9 (27.0-115.5) | app 1.06 ms (0.91-2.07) | 0 |
+| create | 50 | 403 (272-433) | 111.2 (111.0-168.9) | 358.7 (198.8-645.1) | app 1.01 ms (0.90-1.53) | 0 |
+
+- No request failed: 0 of 53,903 creates over the three runs (before: 8 of 64,913), and the
+  kit's line for an answer of 500 or more is in none of the app's logs.
+- The slow end of writes is fair now, and the median pays for it: every create waits its
+  turn, so over 50 connections the median went from 1.8 ms to 111 ms and throughput from 561
+  to 403 a second, while the slowest 1% fell from 1,839 ms to 359 ms.
+- The list's slowest 1% over 50 connections did not move (691 ms, was 704 ms). The reason
+  is not yet found.
 
 ## What must be installed
 
@@ -188,6 +235,43 @@ few could wait past its 5-second limit and fail; and the kit logs every answer o
 
 llocal's checker (`llocal-check@v0.1.2`) passed the rewrite: recipe, install, build,
 old-database, login, start, pages, routes, writes and tables, with 17.1 MB idle, a 203 ms
-start and 540.2 MB on disk. Its survey had missed the `/api/v1` prefix of the routes, so the
-routes check asked for paths that don't exist; with the prefix, the real routes also passed.
-The survey now reads such prefixes, and the checker fails a route that is gone.
+start and 540.2 MB on disk. That disk figure counts the front end's `node_modules`, which
+llocal doesn't keep; checkers after v0.1.3 leave it out, so they print far less for this app.
+Its survey had missed the `/api/v1` prefix of the routes, so the routes check asked for paths
+that don't exist; with the prefix, the real routes also passed. The survey now reads such
+prefixes, and the checker fails a route that is gone.
+
+## On llocal's server
+
+The kit v0.1.3 version above, as llocal built and runs it: an app in llocal's own account,
+under gVisor on llocal's server (an Oracle ARM machine with 4 CPUs and 24 GB), with one CPU
+and 512 MB for the app. These were taken differently from the figures above, so they stand
+apart from them.
+
+- **Start:** 204 ms to the first good answer, llocal's checker's own figure for that version
+  (one measurement by `llocal-check@v0.1.3`, taken as it checked the version before starting
+  it), against 226 ms on the Mac.
+- **The page through llocal's front door:** `GET /` over TLS through nginx and llocal's
+  gateway, from the server itself, with a machine key the owner made for the trial and
+  revoked after. A machine key carries no person, so the API, which needs one, can't be
+  measured this way. oha 1.17.0 (linux-arm64), keep-alive, 15 s at each level, three runs.
+  Processor time is the app's container's; nginx's and the gateway's are not in it.
+
+| request | conns | good/s | median ms | p99 ms | processor time per good answer | not 2xx (all runs) |
+|---|---|---|---|---|---|---|
+| page | 1 | 842 (754-852) | 1.1 (1.1-1.2) | 2.3 (2.3-2.8) | app 1.18 ms (1.16-1.19) | 0 |
+| page | 10 | 1501 (1234-1586) | 4.5 (4.2-7.0) | 38.6 (23.7-38.9) | app 0.66 ms (0.62-0.80) | 0 |
+| page | 50 | 1259 (1240-1674) | 38.8 (24.4-39.4) | 84.1 (72.3-86.0) | app 0.78 ms (0.59-0.79) | 0 |
+
+- At 10 and 50 connections the app's one CPU is the limit. A page costs the app about four
+  times the processor time it does on the Mac: gVisor's system calls and the ARM cores
+  together. Runs 2 and 3 overlapped another app building on the same server, which is why
+  they are slower than run 1.
+- **Waking:** after more than 5 minutes with no requests the app was paused, with 7.3 MB of
+  its memory compressed; the first request then took 79 ms on a new TLS connection, against
+  55 and 56 ms for the same request while it was awake.
+- Memory in the app's container while it served: about 22 MB, at most 23.3 MB.
+- llocal's checker (v0.1.3) also gave an idle-memory figure for the version, left out here:
+  under gVisor it read the app's resident memory, which there counts each 2 MB a page fault
+  sets aside, so it was far above what the app's own container held. Later checkers measure
+  what the app's sandbox frees when it stops.

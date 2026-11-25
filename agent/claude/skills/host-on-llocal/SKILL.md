@@ -19,7 +19,8 @@ The work is a loop: scan, change, check, upload, repeat. In short:
 4. Check it as agent.md's step 4 says.
 5. `create_upload`, and send the archive with the command it gives.
 6. `get_plan`: what is done since the upload before, and what is still left. Repeat from 3
-   until nothing is left, or, once `within_allowance`, offer `request_convert` for the rest.
+   until nothing is left, or, once `within_allowance`, ask the person whether llocal's agent
+   should do the rest (`request_convert`).
 7. `set_secret`, `deploy`, `deployment_status`; on a failed check read `logs`, fix, `push`.
 8. `invite` and `set_access`, then give the person the preview link. Going live is theirs.
 
@@ -32,9 +33,11 @@ Always:
 - Say which model you are before you change code. Rewriting the server needs Claude Opus or
   Sonnet; Haiku does only the scan, the plan, `llocal.json` where that is all, and the upload.
 - llocal's own agent (`request_convert`) converts an app only while `get_plan`'s estimate is
-  `within_allowance`; over it, you do the heavy part from `get_brief`.
-- When `deployment_status` carries an `offer`, llocal's checks failed twice: stop and offer
-  `request_convert` before trying again.
+  `within_allowance`; over it, you do the heavy part from `get_brief`. It works on llocal's
+  side, free to the person, usually in 10 to 30 minutes, and only if the person chooses it:
+  ask them, and call it only after they say yes.
+- When `deployment_status` carries an `offer`, llocal's checks failed twice: stop and ask the
+  person whether llocal's agent should take over (`request_convert`) before trying again.
 - Never write a secret's value anywhere but `set_secret`.
 - Going live, confirming the rules llocal's agent wrote, the old database's key for the data
   copy, and putting an app live as it is are the person's, on the app's page
