@@ -114,7 +114,9 @@
               "name",
               "phone"
             ],
-            "file": "lib/db/src/schema.ts"
+            "file": "lib/db/src/schema.ts",
+            "defined": true,
+            "key": true
           },
           {
             "name": "orders",
@@ -125,7 +127,12 @@
               "created_by",
               "created_at"
             ],
-            "file": "lib/db/src/schema.ts"
+            "file": "lib/db/src/schema.ts",
+            "defined": true,
+            "key": true,
+            "references": [
+              "customers"
+            ]
           }
         ]
       }
@@ -162,6 +169,57 @@
         "looks": "publishable",
         "service": "login"
       }
-    ]
+    ],
+    "packages": [
+      {
+        "name": "@clerk/express",
+        "manifest": "artifacts/api-server/package.json"
+      },
+      {
+        "name": "@workspace/db",
+        "manifest": "artifacts/api-server/package.json"
+      },
+      {
+        "name": "express",
+        "manifest": "artifacts/api-server/package.json"
+      },
+      {
+        "name": "pino",
+        "manifest": "artifacts/api-server/package.json",
+        "unused": true
+      },
+      {
+        "name": "@clerk/react",
+        "manifest": "artifacts/parts-shop/package.json"
+      },
+      {
+        "name": "react",
+        "manifest": "artifacts/parts-shop/package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "artifacts/parts-shop/package.json"
+      },
+      {
+        "name": "wouter",
+        "manifest": "artifacts/parts-shop/package.json"
+      },
+      {
+        "name": "drizzle-orm",
+        "manifest": "lib/db/package.json"
+      },
+      {
+        "name": "pg",
+        "manifest": "lib/db/package.json"
+      }
+    ],
+    "screens": {
+      "files": 1,
+      "words": 0,
+      "controls": 0,
+      "colors": 0,
+      "font_sizes": 0,
+      "responsive": 0
+    }
   }
 }

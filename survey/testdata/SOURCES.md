@@ -50,6 +50,31 @@ the survey and the plan say about each one (`go test ./survey -update` rewrites 
 - The cases named before building: `two-services`, `docker`, `office-db`, and `replit` for a
   login only the original host provides.
 
+## What open-source apps showed the survey misreading
+
+Checked 2026-11-24 by surveying popular open-source apps (FastAPI, Next.js, Express, Flask and
+react-admin on Supabase), without running them. Each fixture below has the shape the survey
+misread, in a small project of its own:
+
+- `sqlmodel`: SQLModel classes without `table=True` are the shapes of requests and replies,
+  not tables.
+- `github-actions`: a cron under `.github/workflows` times the repository's checks, not the app.
+- `service-password`: a password field in the settings for an outside service (a mail server
+  here) is not the app's own login. One where the file speaks of signing in, or of a new,
+  current or confirmed password, still is.
+- `timeout-timer`: a function that, as one of its own statements, sets a timeout to call itself
+  again is a timer; a retry that does it from a callback is not.
+- `express-chained`: Express routes written `router.route("/x").get(...).post(...)`, with a call
+  commented out between them; a `client/` folder the server renders first still runs in the
+  browser.
+- `sql-not-tables`: SQL in a test file and on a help page makes no table; a table a migration
+  renames is counted once, under its new name.
+- `react-admin`: react-admin's Supabase data provider (`ra-supabase-core`) reaches Supabase from
+  the browser.
+- `cloudinary`: an upload posted straight to Cloudinary's API is an outside service.
+- `python-node`: a kept Python server whose pages are built with Node. llocal's bases are `go`
+  (Go and Node), `node` and `python`, so none builds both.
+
 ## Sources
 
 - Lovable: docs.lovable.dev/changelog (2025-10-06 Cloud; 2026-05-18 TanStack Start default from

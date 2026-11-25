@@ -1,0 +1,128 @@
+{
+  "plan": {
+    "shape": "kept",
+    "why": "It already keeps its data in SQLite, so its server stays as it is and the data file moves to llocal.",
+    "found": [
+      "An app with its own Flask server and a React front end.",
+      "1 page: /.",
+      "2 server routes, like GET /api/visitors and POST /api/visitors.",
+      "Its data is in SQLite already, with 1 table: visitors."
+    ],
+    "left": [
+      {
+        "kind": "build",
+        "text": "Its pages are built with Node and its Flask server runs on Python, and no llocal setup has both: the pages are built before they are uploaded, or the server is rewritten in Go."
+      },
+      {
+        "kind": "database",
+        "text": "Its SQLite file moves into llocal's data folder, where it survives updates and is backed up."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The SQLite file moves into llocal's data folder.",
+        "detail": "There it survives updates and is backed up."
+      },
+      {
+        "text": "Its own Flask server stays.",
+        "detail": "It already keeps its data in SQLite, so its server stays as it is and the data file moves to llocal."
+      }
+    ],
+    "blockers": [
+      {
+        "case": "two_languages",
+        "title": "Its pages and its server need two different setups",
+        "detail": "Its pages are built with Node, and its Flask server runs on Python. llocal builds and runs an app in one setup: Go (which has Node too), Node or Python. None has both Node and Python.",
+        "way_out": "Build the pages on your computer and add the built files to the upload in a folder named static (llocal leaves out folders like dist and build), for the server to hand out. Or have the server rewritten in Go on llocal's kit, whose setup builds the pages too."
+      }
+    ]
+  },
+  "survey": {
+    "languages": [
+      "javascript",
+      "python"
+    ],
+    "frameworks": [
+      "flask",
+      "react",
+      "vite"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "flask",
+        "files": 1,
+        "bytes": 714
+      }
+    ],
+    "pages": [
+      {
+        "path": "/"
+      }
+    ],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/visitors",
+        "file": "app.py"
+      },
+      {
+        "method": "POST",
+        "path": "/api/visitors",
+        "file": "app.py"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "sqlite",
+        "files": [
+          "app.py"
+        ],
+        "tables": [
+          {
+            "name": "visitors",
+            "columns": [
+              "id",
+              "name",
+              "host",
+              "arrived"
+            ],
+            "file": "app.py",
+            "defined": true,
+            "key": true
+          }
+        ]
+      }
+    ],
+    "packages": [
+      {
+        "name": "flask",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "gunicorn",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "react",
+        "manifest": "web/package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "web/package.json"
+      }
+    ],
+    "screens": {
+      "files": 2,
+      "words": 4,
+      "controls": 0,
+      "colors": 0,
+      "font_sizes": 0,
+      "responsive": 0
+    }
+  }
+}

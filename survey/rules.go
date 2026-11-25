@@ -38,6 +38,7 @@ func (p *project) survey() {
 	p.private()
 	p.containers()
 	p.unlisted()
+	p.facts()
 	p.finish()
 }
 
@@ -48,7 +49,8 @@ var (
 	reqLine    = compile(`(?m)^[ \t]*([A-Za-z0-9][A-Za-z0-9._-]*)`)
 	pyDepsList = compile(`\bdependencies\s*=\s*\[((?:[^\]"']|"[^"]*"|'[^']*')*)\]`)
 	pyDepName  = compile(`["']([A-Za-z0-9][A-Za-z0-9._-]*)`)
-	tomlTable  = compile(`(?m)^\[(?:tool\.poetry\.dependencies|packages|dev-packages)\][ \t]*\n((?:[^\[][^\n]*\n?)*)`)
+	tomlTable  = compile(`(?m)^\[(tool\.poetry\.dependencies|packages|dev-packages)\][ \t]*\n((?:[^\[][^\n]*\n?)*)`)
+	devList    = compile(`(?i)dev|test|lint|doc`)
 	tomlKey    = compile(`(?m)^([A-Za-z0-9][A-Za-z0-9._-]*)[ \t]*=`)
 	goRequire  = compile(`(?m)^[ \t]*(?:require[ \t]+)?([a-z0-9.-]+\.[a-z]+/?[\w./-]*)[ \t]+v\d`)
 )
@@ -104,13 +106,17 @@ func norm(name string) string { return normalizer.Replace(strings.ToLower(name))
 
 // manifests reads each manifest's dependencies. They are not capped like the other lists,
 // so a long requirements file is read whole; a name listed twice does no harm.
+// The packages the app runs on (runtime) leave out its development tools: devDependencies, a
+// module only another needs (// indirect), a requirements file named for development or
+// tests, and Pipfile's dev-packages.
 func (p *project) manifests() {
-	p.deps = map[string][]string{}
+	p.deps, p.runtime = map[string][]string{}, map[string][]string{}
 	for _, n := range p.paths {
 		text, ok := p.text[n]
 		if !ok {
 			continue
 		}
+		var run, dev []string
 		switch base := path.Base(n); {
 		case base == "package.json":
 			var pkg struct {
@@ -120,32 +126,46 @@ func (p *project) manifests() {
 			if json.Unmarshal([]byte(text), &pkg) != nil {
 				continue
 			}
-			p.deps[n] = slices.Sorted(maps.Keys(pkg.Dependencies))
-			p.deps[n] = append(p.deps[n], slices.Sorted(maps.Keys(pkg.DevDependencies))...)
+			run, dev = slices.Sorted(maps.Keys(pkg.Dependencies)), slices.Sorted(maps.Keys(pkg.DevDependencies))
 		case base == "go.mod":
-			p.deps[n] = []string{}
-			for _, m := range goRequire.FindAllStringSubmatch(text, -1) {
-				p.deps[n] = append(p.deps[n], m[1])
-			}
-		case isRequirements(base):
-			for _, m := range reqLine.FindAllStringSubmatch(text, -1) {
-				p.deps[n] = append(p.deps[n], norm(m[1]))
-			}
-		case base == "pyproject.toml" || base == "Pipfile":
-			for _, list := range pyDepsList.FindAllStringSubmatch(text, -1) {
-				for _, m := range pyDepName.FindAllStringSubmatch(list[1], -1) {
-					p.deps[n] = append(p.deps[n], norm(m[1]))
+			for _, line := range strings.Split(text, "\n") {
+				if m := goRequire.FindStringSubmatch(line); m != nil && strings.Contains(line, "// indirect") {
+					dev = append(dev, m[1])
+				} else if m != nil {
+					run = append(run, m[1])
 				}
+			}
+		case isRequirements(base) && devList.MatchString(base):
+			dev = normed(firsts(reqLine, text))
+		case isRequirements(base):
+			run = normed(firsts(reqLine, text))
+		case base == "pyproject.toml" || base == "Pipfile":
+			for _, list := range firsts(pyDepsList, text) {
+				run = append(run, normed(firsts(pyDepName, list))...)
 			}
 			for _, table := range tomlTable.FindAllStringSubmatch(text, -1) {
-				for _, m := range tomlKey.FindAllStringSubmatch(table[1], -1) {
-					if m[1] != "python" {
-						p.deps[n] = append(p.deps[n], norm(m[1]))
-					}
+				keys := normed(slices.DeleteFunc(firsts(tomlKey, table[2]), func(k string) bool { return k == "python" }))
+				if table[1] == "dev-packages" {
+					dev = append(dev, keys...)
+				} else {
+					run = append(run, keys...)
 				}
 			}
+		default:
+			continue
 		}
+		p.deps[n] = append(slices.Clone(run), dev...)
+		slices.Sort(run)
+		p.runtime[n] = slices.Compact(run)
 	}
+}
+
+// normed is names, each as norm makes it.
+func normed(names []string) []string {
+	for i := range names {
+		names[i] = norm(names[i])
+	}
+	return names
 }
 
 // dep says whether any manifest lists one of names.
@@ -271,10 +291,12 @@ func (p *project) builder() {
 var (
 	serverPath = compile(`(^|/)(server|api-server|backend|db)/|^(api|supabase|netlify|functions)/|(^|/)(app|pages|routes)/api/|(^|/)server\.[cm]?[jt]s$|\.(server|functions)\.[cm]?[jt]sx?$|(^|/)[\w-]+\.config\.[cm]?[jt]s$`)
 	frontPath  = compile(`(^|/)(src|client|app|components|hooks|lib|pages|public|web)/`)
+	clientPath = compile(`^(?:src/)?(client|public)/`)
 	useClient  = compile(`(?m)^\s*["']use client["']`)
 )
 
-// classify decides which code files run in visitors' browsers.
+// classify decides which code files run in visitors' browsers. A client or public folder at
+// the top does, even when the server draws its pages first.
 func (p *project) classify() {
 	spa := slices.ContainsFunc(spaFrameworks, p.s.fw)
 	p.browser = map[string]bool{}
@@ -287,7 +309,7 @@ func (p *project) classify() {
 		case useClient.MatchString(t) || strings.Contains(t, "import.meta.env.VITE_") || strings.Contains(t, "createBrowserClient"):
 			p.browser[n] = true
 		default:
-			p.browser[n] = spa && frontPath.MatchString(n)
+			p.browser[n] = spa && frontPath.MatchString(n) || clientPath.MatchString(n)
 		}
 	}
 }
@@ -301,7 +323,8 @@ var (
 	handlerKey   = compile(`\b(GET|POST|PUT|PATCH|DELETE)\s*:`)
 	routerPage   = compile(`<Route\b[^>]*?\bpath=["']([^"']+)["']|\bpath\s*:\s*["'](/[^"']*)["']`)
 	expressFile  = compile(`\b(express|fastify|hono|koa)\b|\bRouter\(\)`)
-	expressRoute = compile("\\b(?:app|router|server|api|routes|\\w+Router)\\s*\\.\\s*(get|post|put|patch|delete|all)\\s*\\(\\s*[\"'`](/[^\"'`]*)[\"'`]")
+	expressRoute = compile("\\b(?:app|router|server|api|routes|\\w+Router)\\s*\\.\\s*(get|post|put|patch|delete|all|route)\\s*\\(\\s*[\"'`](/[^\"'`]*)[\"'`]")
+	chainCall    = compile(`^\s*(?://[^\n]*\s*)*\.\s*(get|post|put|patch|delete|all)\s*\(`)
 	expressParam = compile(`:(\w+)(?:\([^)]*\))?\??`)
 	pyRoute      = compile(`@(\w+)\.(route|get|post|put|patch|delete|api_route)\(\s*f?["'](/[^"']*)["']([^)]*)\)`)
 	pyRouter     = compile(`(\w+)\s*=\s*(?:APIRouter|Blueprint)\(([^)]*)\)`)
@@ -342,13 +365,24 @@ func (p *project) routes() {
 				}
 			}
 		case !p.browser[n] && expressFile.MatchString(t):
-			for _, m := range expressRoute.FindAllStringSubmatch(t, -1) {
-				method := strings.ToUpper(m[1])
-				if method == "ALL" {
-					method = ""
+			locs := expressRoute.FindAllStringSubmatchIndex(t, -1)
+			for k, loc := range locs {
+				methods := []string{sub(t, loc, 1)}
+				if methods[0] == "route" {
+					// Read up to the next route, so an unclosed call cannot make the scan quadratic.
+					end := len(t)
+					if k+1 < len(locs) {
+						end = locs[k+1][0]
+					}
+					methods = chained(t[loc[3]+strings.IndexByte(t[loc[3]:], '(') : end])
 				}
-				if pth, ok := colonPath(cmp.Or(strings.TrimSuffix(mounted[n]+m[2], "/"), "/")); ok {
-					p.route(n, method, pth)
+				if pth, ok := colonPath(cmp.Or(strings.TrimSuffix(mounted[n]+sub(t, loc, 2), "/"), "/")); ok {
+					for _, method := range methods {
+						if method == "all" {
+							method = ""
+						}
+						p.route(n, strings.ToUpper(method), pth)
+					}
 				}
 			}
 		}
@@ -406,6 +440,21 @@ func (p *project) mounts() map[string]string {
 // wildcard, which names no one address.
 func colonPath(pth string) (string, bool) {
 	return expressParam.ReplaceAllString(pth, "{$1}"), !strings.Contains(pth, "*")
+}
+
+// chained is the methods called one after another on the call that opens s, as in
+// router.route("/x").get(...).post(...), past the comments between them.
+func chained(s string) []string {
+	var methods []string
+	for {
+		s = s[min(len(s), len(balanced(s, '(', ')'))+2):]
+		m := chainCall.FindStringSubmatchIndex(s)
+		if m == nil {
+			return methods
+		}
+		methods = append(methods, s[m[2]:m[3]])
+		s = s[m[1]-1:]
+	}
 }
 
 var (

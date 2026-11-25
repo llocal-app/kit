@@ -194,7 +194,9 @@
               "email",
               "created_at"
             ],
-            "file": "lib/db/schema.ts"
+            "file": "lib/db/schema.ts",
+            "defined": true,
+            "key": true
           },
           {
             "name": "session",
@@ -204,7 +206,12 @@
               "user_id",
               "expires_at"
             ],
-            "file": "lib/db/schema.ts"
+            "file": "lib/db/schema.ts",
+            "defined": true,
+            "key": true,
+            "references": [
+              "user"
+            ]
           },
           {
             "name": "bookings",
@@ -216,7 +223,12 @@
               "seats",
               "paid"
             ],
-            "file": "lib/db/schema.ts"
+            "file": "lib/db/schema.ts",
+            "defined": true,
+            "key": true,
+            "references": [
+              "user"
+            ]
           }
         ]
       }
@@ -301,6 +313,63 @@
         "service": "stripe",
         "file": "app/api/stripe/webhook/route.ts"
       }
-    ]
+    ],
+    "packages": [
+      {
+        "name": "@neondatabase/serverless",
+        "manifest": "package.json"
+      },
+      {
+        "name": "@vercel/analytics",
+        "manifest": "package.json"
+      },
+      {
+        "name": "ai",
+        "manifest": "package.json"
+      },
+      {
+        "name": "better-auth",
+        "manifest": "package.json"
+      },
+      {
+        "name": "drizzle-orm",
+        "manifest": "package.json"
+      },
+      {
+        "name": "next",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "package.json"
+      },
+      {
+        "name": "stripe",
+        "manifest": "package.json"
+      }
+    ],
+    "screens": {
+      "files": 4,
+      "words": 5,
+      "controls": 6,
+      "colors": 0,
+      "font_sizes": 0,
+      "viewport": true,
+      "responsive": 0,
+      "signs": [
+        {
+          "kind": "field_no_label",
+          "count": 4,
+          "files": [
+            "app/dashboard/page.tsx",
+            "app/sign-in/page.tsx"
+          ]
+        }
+      ]
+    }
   }
 }

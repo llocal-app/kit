@@ -47,7 +47,7 @@ type Need struct {
 }
 
 // Blocker is named before anything is built, with its way out. Case is two_services,
-// container, private_database, host_login or unknown.
+// container, private_database, two_languages, host_login or unknown.
 type Blocker struct {
 	Case   string `json:"case"`
 	Title  string `json:"title"`
@@ -518,6 +518,13 @@ func (p *Plan) blockers(s Survey, ip string) {
 				fmt.Sprintf("Export the data to a file (a backup, or a spreadsheet per table) and add it to the upload. "+
 					"Or ask whoever runs your network to let llocal's address, %s, reach the database once, for the copy.", ip)})
 		}
+	}
+	if p.Shape == "kept" && s.RecipeShape == "" && len(s.Servers) == 1 && slices.Contains(pythonFrameworks, s.Servers[0].Framework) &&
+		(slices.ContainsFunc(spaFrameworks, s.fw) || slices.ContainsFunc(frontFrameworks, s.fw)) {
+		p.Blockers = append(p.Blockers, Blocker{"two_languages", "Its pages and its server need two different setups",
+			fmt.Sprintf("Its pages are built with Node, and its %s server runs on Python. llocal builds and runs an app in one setup: Go (which has Node too), Node or Python. None has both Node and Python.", s.serverLabel()),
+			"Build the pages on your computer and add the built files to the upload in a folder named static (llocal leaves out folders like dist and build), for the server to hand out. " +
+				"Or have the server rewritten in Go on llocal's kit, whose setup builds the pages too."})
 	}
 	if l := s.Login; l != nil && hostLogins[l.Provider] != "" {
 		host := hostLogins[l.Provider]

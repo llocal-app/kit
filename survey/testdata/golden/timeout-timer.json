@@ -1,0 +1,106 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its Express server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own Express server.",
+      "2 server routes, like GET /api/notes and POST /api/notes.",
+      "1 timed job, in digest.js."
+    ],
+    "left": [
+      {
+        "kind": "server",
+        "text": "Its Express server (2 routes in 3 files, 1 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "schedules",
+        "text": "1 timed job moves to llocal's timetable: apps sleep when nobody uses them, which would stop a timer inside the app."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The Express server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      },
+      {
+        "text": "Timed jobs run on llocal's timetable instead of a timer inside the app.",
+        "detail": "Apps sleep when nobody is using them, which would stop a timer."
+      }
+    ],
+    "needs": [
+      {
+        "text": "The value of DIGEST_HOOK_URL.",
+        "setting": "DIGEST_HOOK_URL"
+      }
+    ],
+    "settings": [
+      {
+        "name": "DIGEST_HOOK_URL",
+        "kind": "secret"
+      }
+    ],
+    "dropped": [
+      "PORT"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "javascript"
+    ],
+    "frameworks": [
+      "express"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "express",
+        "files": 3,
+        "bytes": 1218
+      }
+    ],
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/notes",
+        "file": "server.js"
+      },
+      {
+        "method": "POST",
+        "path": "/api/notes",
+        "file": "server.js"
+      }
+    ],
+    "data_stores": [],
+    "env": [
+      {
+        "name": "DIGEST_HOOK_URL",
+        "files": [
+          "digest.js"
+        ]
+      },
+      {
+        "name": "PORT",
+        "files": [
+          "server.js"
+        ],
+        "service": "platform"
+      }
+    ],
+    "schedules": [
+      {
+        "file": "digest.js"
+      }
+    ],
+    "packages": [
+      {
+        "name": "express",
+        "manifest": "package.json"
+      }
+    ]
+  }
+}

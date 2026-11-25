@@ -1,0 +1,140 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its FastAPI server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own FastAPI server.",
+      "3 server routes, like GET /api/tools, POST /api/tools and POST /api/tools/{tool_id}/checkouts.",
+      "A PostgreSQL database, with 2 tables: tool and checkout."
+    ],
+    "left": [
+      {
+        "kind": "database",
+        "text": "Its data is in PostgreSQL (2 tables) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "server",
+        "text": "Its FastAPI server (3 routes in 2 files, 2 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The PostgreSQL data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The FastAPI server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ],
+    "needs": [
+      {
+        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+      }
+    ],
+    "dropped": [
+      "DATABASE_URL"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "python"
+    ],
+    "frameworks": [
+      "fastapi"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "fastapi",
+        "files": 2,
+        "bytes": 1653
+      }
+    ],
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/tools",
+        "file": "main.py"
+      },
+      {
+        "method": "POST",
+        "path": "/api/tools",
+        "file": "main.py"
+      },
+      {
+        "method": "POST",
+        "path": "/api/tools/{tool_id}/checkouts",
+        "file": "main.py"
+      }
+    ],
+    "data_stores": [
+      {
+        "kind": "postgres",
+        "env": [
+          "DATABASE_URL"
+        ],
+        "files": [
+          "requirements.txt"
+        ],
+        "tables": [
+          {
+            "name": "tool",
+            "columns": [
+              "id",
+              "retired"
+            ],
+            "file": "models.py",
+            "defined": true,
+            "key": true
+          },
+          {
+            "name": "checkout",
+            "columns": [
+              "id",
+              "tool_id"
+            ],
+            "file": "models.py",
+            "defined": true,
+            "key": true,
+            "references": [
+              "tool"
+            ]
+          }
+        ]
+      }
+    ],
+    "env": [
+      {
+        "name": "DATABASE_URL",
+        "files": [
+          "main.py"
+        ],
+        "service": "postgres"
+      }
+    ],
+    "packages": [
+      {
+        "name": "fastapi",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "psycopg",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "sqlmodel",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "uvicorn",
+        "manifest": "requirements.txt"
+      }
+    ]
+  }
+}

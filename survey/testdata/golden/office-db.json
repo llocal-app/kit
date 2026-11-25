@@ -114,6 +114,20 @@
         "address": "sqlserver01.acme.local",
         "file": "app.py"
       }
+    ],
+    "packages": [
+      {
+        "name": "flask",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "pyodbc",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "requests",
+        "manifest": "requirements.txt"
+      }
     ]
   }
 }

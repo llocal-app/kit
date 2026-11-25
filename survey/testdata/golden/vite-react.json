@@ -39,6 +39,29 @@
       }
     ],
     "routes": [],
-    "data_stores": []
+    "data_stores": [],
+    "packages": [
+      {
+        "name": "react",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-router-dom",
+        "manifest": "package.json"
+      }
+    ],
+    "screens": {
+      "files": 4,
+      "words": 3,
+      "controls": 1,
+      "colors": 0,
+      "font_sizes": 0,
+      "viewport": true,
+      "responsive": 0
+    }
   }
 }

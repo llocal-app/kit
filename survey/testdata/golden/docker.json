@@ -107,7 +107,9 @@
               "customer",
               "total"
             ],
-            "file": "schema.sql"
+            "file": "schema.sql",
+            "defined": true,
+            "key": true
           }
         ]
       },
@@ -152,6 +154,28 @@
           "db",
           "cache"
         ]
+      }
+    ],
+    "packages": [
+      {
+        "name": "flask",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "gunicorn",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "pdfkit",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "psycopg2-binary",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "redis",
+        "manifest": "requirements.txt"
       }
     ]
   }

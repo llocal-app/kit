@@ -24,6 +24,8 @@ var serverFrameworks = []string{
 var (
 	// pageFrameworks draw their pages on the server in Python.
 	pageFrameworks = []string{"django", "streamlit", "gradio", "dash"}
+	// pythonFrameworks are the servers that run on Python. llocal's Python setup has no Node.
+	pythonFrameworks = append([]string{"flask", "fastapi"}, pageFrameworks...)
 	// fullStackFrameworks are one framework for the pages and the server.
 	fullStackFrameworks = []string{"nextjs", "tanstack-start", "remix", "sveltekit"}
 	// spaFrameworks build a front end whose code all runs in the browser.
@@ -34,6 +36,7 @@ var (
 var storeDeps = map[string]string{
 	"@supabase/supabase-js": "supabase", "@supabase/ssr": "supabase", "supabase": "supabase",
 	"@supabase/auth-helpers-nextjs": "supabase", "@supabase/auth-helpers-react": "supabase",
+	"ra-supabase": "supabase", "ra-supabase-core": "supabase",
 	"pg": "postgres", "postgres": "postgres", "pg-promise": "postgres", "@neondatabase/serverless": "postgres",
 	"@vercel/postgres": "postgres", "psycopg2": "postgres", "psycopg2-binary": "postgres",
 	"psycopg": "postgres", "asyncpg": "postgres",
@@ -111,6 +114,8 @@ var services = []service{
 		calls: "webhook", tell: "HubSpot > Settings > Integrations > Private Apps > your app > Webhooks"},
 	{name: "shopify", label: "Shopify", kind: "online store", packages: []string{"@shopify/shopify-api", "shopify-api-node", "shopifyapi"}, hosts: []string{"myshopify.com"}, env: "SHOPIFY",
 		calls: "webhook", tell: "Shopify admin > Settings > Notifications > Webhooks"},
+	{name: "cloudinary", label: "Cloudinary", kind: "file storage", packages: []string{"cloudinary", "next-cloudinary", "@cloudinary/url-gen", "@cloudinary/react"},
+		hosts: []string{"api.cloudinary.com"}, env: "CLOUDINARY"},
 }
 
 // owns says whether an environment variable is named for the service.

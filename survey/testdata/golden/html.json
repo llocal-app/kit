@@ -57,6 +57,24 @@
           "index.html"
         ]
       }
-    ]
+    ],
+    "screens": {
+      "files": 1,
+      "words": 5,
+      "controls": 1,
+      "colors": 0,
+      "font_sizes": 0,
+      "viewport": true,
+      "responsive": 0,
+      "signs": [
+        {
+          "kind": "field_no_label",
+          "count": 1,
+          "files": [
+            "index.html"
+          ]
+        }
+      ]
+    }
   }
 }

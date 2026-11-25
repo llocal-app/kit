@@ -259,26 +259,35 @@ func (p *project) store(kind string) *DataStore {
 	return nil
 }
 
-func (p *project) addTable(kind, name, file string, cols []string) {
+// addTable adds the table, or columns to it, and returns it for what its definition says; nil
+// when there is no store for it or the list is full.
+func (p *project) addTable(kind, name, file string, cols []string) *Table {
 	d := p.store(kind)
 	if d == nil {
-		return
+		return nil
 	}
-	i := slices.IndexFunc(d.Tables, func(t Table) bool { return strings.EqualFold(t.Name, name) })
+	i := d.table(name)
 	if i < 0 && len(d.Tables) > maxList {
-		return
+		return nil
 	}
 	if i < 0 {
 		d.Tables = append(d.Tables, Table{Name: name, File: file})
 		i = len(d.Tables) - 1
 	}
 	d.Tables[i].Columns = add(d.Tables[i].Columns, cols...)
+	return &d.Tables[i]
+}
+
+// table is the index of the store's table called name, in any case, or -1.
+func (d *DataStore) table(name string) int {
+	return slices.IndexFunc(d.Tables, func(t Table) bool { return strings.EqualFold(t.Name, name) })
 }
 
 var (
-	sqlComment   = compile(`(?s)/\*.*?\*/|--[^\n]*`)
-	createTable  = compile("(?i)\\bcreate\\s+table\\s+(?:if\\s+not\\s+exists\\s+)?(?:[\"`\\[]?(\\w+)[\"`\\]]?\\.)?[\"`\\[]?(\\w+)[\"`\\]]?\\s*\\(")
-	alterAdd     = compile("(?i)\\balter\\s+table\\s+(?:if\\s+exists\\s+)?(?:only\\s+)?(?:[\"`]?(\\w+)[\"`]?\\.)?[\"`]?(\\w+)[\"`]?\\s+add\\s+(?:column\\s+)?(?:if\\s+not\\s+exists\\s+)?[\"`]?(\\w+)")
+	sqlComment  = compile(`(?s)/\*.*?\*/|--[^\n]*`)
+	createTable = compile("(?i)\\bcreate\\s+table\\s+(?:if\\s+not\\s+exists\\s+)?(?:[\"`\\[]?(\\w+)[\"`\\]]?\\.)?[\"`\\[]?(\\w+)[\"`\\]]?\\s*\\(")
+	alterTable  = compile("(?i)\\balter\\s+table\\s+(?:if\\s+exists\\s+)?(?:only\\s+)?(?:[\"`]?(\\w+)[\"`]?\\.)?[\"`]?(\\w+)[\"`]?\\s+" +
+		"(?:add\\s+(?:column\\s+)?(?:if\\s+not\\s+exists\\s+)?[\"`]?(\\w+)|rename\\s+to\\s+(?:[\"`]?\\w+[\"`]?\\.)?[\"`]?(\\w+))")
 	otherSchemas = []string{"auth", "storage", "cron", "extensions", "realtime", "vault", "graphql", "net"}
 	notColumns   = []string{"constraint", "primary", "foreign", "unique", "check", "exclude", "key", "index", "like"}
 	identifier   = compile(`^[A-Za-z_]\w*$`)
@@ -300,10 +309,12 @@ var (
 )
 
 // tables finds each store's tables: definitions first (SQL, Drizzle, Prisma, SQLAlchemy,
-// Supabase's generated types), then names used in queries.
+// Supabase's generated types), then names used in queries. Tests make tables of their own,
+// and SQL in the pages is there to be read, like a help page's example.
 func (p *project) tables() {
+	code := slices.DeleteFunc(slices.Clone(p.code), testFile.MatchString)
 	for _, n := range p.files(func(n string) bool {
-		return IsCode(n) || slices.Contains([]string{".sql", ".prisma"}, path.Ext(n))
+		return (IsCode(n) || slices.Contains([]string{".sql", ".prisma"}, path.Ext(n))) && !testFile.MatchString(n)
 	}) {
 		t := p.text[n]
 		kind := ""
@@ -313,23 +324,24 @@ func (p *project) tables() {
 		if path.Ext(n) == ".sql" {
 			t = sqlComment.ReplaceAllString(t, "")
 		}
-		for _, loc := range createTable.FindAllStringSubmatchIndex(t, -1) {
-			schema, name := sub(t, loc, 1), sub(t, loc, 2)
-			if !slices.Contains(otherSchemas, strings.ToLower(schema)) {
-				p.addTable(kind, name, n, sqlColumns(balanced(t[loc[1]-1:], '(', ')')))
-			}
+		if !p.browser[n] {
+			p.sqlTables(kind, n, t)
 		}
-		for _, m := range alterAdd.FindAllStringSubmatch(t, -1) {
-			if !slices.Contains(otherSchemas, strings.ToLower(m[1])) && !slices.Contains(notColumns, strings.ToLower(m[3])) {
-				p.addTable(kind, m[2], n, []string{m[3]})
-			}
-		}
-		for _, loc := range drizzleTable.FindAllStringSubmatchIndex(t, -1) {
+		locs := drizzleTable.FindAllStringSubmatchIndex(t, -1)
+		vars := drizzleVars(t, len(locs))
+		for i, loc := range locs {
+			body := balanced(t[loc[1]-1:], '{', '}')
 			var cols []string
-			for _, c := range drizzleCol.FindAllStringSubmatch(balanced(t[loc[1]-1:], '{', '}'), -1) {
+			for _, c := range drizzleCol.FindAllStringSubmatch(body, -1) {
 				cols = append(cols, cmp.Or(c[2], c[1]))
 			}
-			p.addTable(drizzleKind[sub(t, loc, 1)], sub(t, loc, 2), n, cols)
+			if tb := p.addTable(drizzleKind[sub(t, loc, 1)], sub(t, loc, 2), n, cols); tb != nil {
+				end := len(t)
+				if i+1 < len(locs) {
+					end = locs[i+1][0]
+				}
+				tb.drizzleFacts(t[loc[0]:end], body, vars)
+			}
 		}
 		if path.Ext(n) == ".prisma" {
 			p.prismaTables(n, t)
@@ -338,7 +350,7 @@ func (p *project) tables() {
 			p.pyTables(n, t)
 		}
 	}
-	for _, n := range p.code {
+	for _, n := range code {
 		t := p.text[n]
 		for _, block := range strings.Split(t, "Tables: {")[1:] {
 			block, _, _ = strings.Cut(block, "Views: {")
@@ -351,7 +363,7 @@ func (p *project) tables() {
 			}
 		}
 	}
-	for _, n := range p.code {
+	for _, n := range code {
 		t := p.text[n]
 		for _, m := range supaFrom.FindAllStringSubmatch(t, -1) {
 			p.addTable("supabase", m[1], n, nil)
@@ -362,6 +374,56 @@ func (p *project) tables() {
 		for _, m := range mongoModel.FindAllStringSubmatch(t, -1) {
 			p.addTable("mongodb", m[1], n, nil)
 		}
+	}
+}
+
+// sqlTables reads the tables SQL makes, adds columns to and renames, in its order.
+func (p *project) sqlTables(kind, n, t string) {
+	made := map[string]int{} // where each table is last made
+	for _, loc := range createTable.FindAllStringSubmatchIndex(t, -1) {
+		if !slices.Contains(otherSchemas, strings.ToLower(sub(t, loc, 1))) {
+			body := balanced(t[loc[1]-1:], '(', ')')
+			if tb := p.addTable(kind, sub(t, loc, 2), n, sqlColumns(body)); tb != nil {
+				tb.sqlFacts(body)
+			}
+			made[strings.ToLower(sub(t, loc, 2))] = loc[0]
+		}
+	}
+	for _, loc := range alterTable.FindAllStringSubmatchIndex(t, -1) {
+		name, col, to := sub(t, loc, 2), sub(t, loc, 3), sub(t, loc, 4)
+		clause, _, _ := strings.Cut(t[loc[0]:], ";")
+		switch {
+		case slices.Contains(otherSchemas, strings.ToLower(sub(t, loc, 1))):
+		// A table renamed out of the way and made again under its name keeps the name.
+		case to != "" && made[strings.ToLower(name)] <= loc[0]:
+			p.renameTable(kind, name, to)
+		case col != "" && !slices.Contains(notColumns, strings.ToLower(col)):
+			if tb := p.addTable(kind, name, n, []string{col}); tb != nil {
+				tb.alterFacts(clause)
+			}
+		// A constraint added to a table the survey knows: a key, or a reference.
+		case col != "":
+			if d := p.store(kind); d != nil && d.table(name) >= 0 {
+				d.Tables[d.table(name)].alterFacts(clause)
+			}
+		}
+	}
+}
+
+// renameTable gives a table its new name, joining it to a table that already has it.
+func (p *project) renameTable(kind, from, to string) {
+	d := p.store(kind)
+	if d == nil {
+		return
+	}
+	i, j := d.table(from), d.table(to)
+	switch {
+	case i < 0:
+	case j < 0 || j == i:
+		d.Tables[i].Name = to
+	default:
+		d.Tables[j].merge(d.Tables[i])
+		d.Tables = slices.Delete(d.Tables, i, i+1)
 	}
 }
 
@@ -390,22 +452,8 @@ func balanced(s string, open, close byte) string {
 
 func sqlColumns(body string) []string {
 	var cols []string
-	depth, start := 0, 0
-	for i := 0; i <= len(body); i++ {
-		if i < len(body) {
-			switch body[i] {
-			case '(':
-				depth++
-			case ')':
-				depth--
-			}
-			if body[i] != ',' || depth > 0 {
-				continue
-			}
-		}
-		f := strings.Fields(body[start:i])
-		start = i + 1
-		if len(f) > 0 {
+	for _, def := range topLevel(body) {
+		if f := strings.Fields(def); len(f) > 0 {
 			name := strings.Trim(f[0], "\"`[]")
 			if identifier.MatchString(name) && !slices.Contains(notColumns, strings.ToLower(name)) {
 				cols = append(cols, name)
@@ -415,43 +463,69 @@ func sqlColumns(body string) []string {
 	return cols
 }
 
+// topLevel splits a definition's body at the commas outside brackets.
+func topLevel(body string) []string {
+	var parts []string
+	depth, start := 0, 0
+	for i := 0; i < len(body); i++ {
+		switch body[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				parts, start = append(parts, body[start:i]), i+1
+			}
+		}
+	}
+	return append(parts, body[start:])
+}
+
 func (p *project) prismaTables(n, t string) {
 	locs := prismaModel.FindAllStringSubmatchIndex(t, -1)
-	models := map[string]bool{}
+	tables := map[string]string{} // each model's table
 	for _, loc := range locs {
-		models[sub(t, loc, 1)] = true
+		model := sub(t, loc, 1)
+		tables[model] = model
+		if m := prismaTable.FindStringSubmatch(balanced(t[loc[1]-1:], '{', '}')); m != nil {
+			tables[model] = m[1]
+		}
 	}
 	kind := ""
 	if m := prismaDB.FindStringSubmatch(t); m != nil {
 		kind = prismaKind[m[1]]
 	}
 	for _, loc := range locs {
-		name := sub(t, loc, 1)
+		body := balanced(t[loc[1]-1:], '{', '}')
 		var cols []string
-		for _, line := range strings.Split(balanced(t[loc[1]-1:], '{', '}'), "\n") {
+		for _, line := range strings.Split(body, "\n") {
 			f, mapped := prismaField.FindStringSubmatch(line), prismaMap.FindStringSubmatch(line)
 			switch {
-			case strings.HasPrefix(strings.TrimSpace(line), "@@map") && mapped != nil:
-				name = mapped[1]
-			case f == nil || models[f[2]]:
+			case strings.HasPrefix(strings.TrimSpace(line), "@@map"):
+			case f == nil || tables[f[2]] != "":
 			case mapped != nil:
 				cols = append(cols, mapped[1])
 			default:
 				cols = append(cols, f[1])
 			}
 		}
-		p.addTable(kind, name, n, cols)
+		if tb := p.addTable(kind, tables[sub(t, loc, 1)], n, cols); tb != nil {
+			tb.prismaFacts(body, tables)
+		}
 	}
 }
 
 // pyTables reads SQLAlchemy and SQLModel classes. Flask-SQLAlchemy names a table after its
-// class in snake case unless __tablename__ says otherwise.
+// class in snake case unless __tablename__ says otherwise. A SQLModel class is a table only
+// with table=True; the others are the shapes of requests and replies.
 func (p *project) pyTables(n, t string) {
 	locs := pyClass.FindAllStringSubmatchIndex(t, -1)
+	sqlmodel := slices.Contains(p.imports[n], "sqlmodel")
 	for i, loc := range locs {
 		bases := sub(t, loc, 2)
 		table := strings.Contains(bases, "table=True") ||
-			!strings.Contains(bases, "BaseModel") && (strings.Contains(bases, "Model") || strings.Contains(bases, "Base"))
+			!sqlmodel && !strings.Contains(bases, "BaseModel") && (strings.Contains(bases, "Model") || strings.Contains(bases, "Base"))
 		if !table {
 			continue
 		}
@@ -471,7 +545,9 @@ func (p *project) pyTables(n, t string) {
 		if m := pyTableName.FindStringSubmatch(body); m != nil {
 			name = m[1]
 		}
-		p.addTable("", name, n, cols)
+		if tb := p.addTable("", name, n, cols); tb != nil {
+			tb.pyFacts(body)
+		}
 	}
 }
 
@@ -492,16 +568,25 @@ var logins = []struct {
 	{"fastapi", compile(`\bOAuth2PasswordBearer\b|\bfastapi_users\b`)},
 	{"streamlit", compile(`\bst\.login\(|\bstreamlit_authenticator\b`)},
 	{"passport", compile(`\bpassport\.(use|authenticate)\(`)},
-	{"own", compile(`type\s*=\s*\{?["']password["']|\bbcrypt\b|\bcheck_password_hash\b`)},
+	{"own", compile(`\bbcrypt\b|\bcheck_password_hash\b`)},
 }
 
-var authPath = compile(`(?i)replit_?auth|replit-auth|replit_integrations/auth`)
+var (
+	authPath = compile(`(?i)replit_?auth|replit-auth|replit_integrations/auth`)
+	// A password field is the app's own login where its file speaks of signing in or of
+	// changing a password; one in the settings for an outside service, like a notification
+	// server's, is not.
+	passwordField = compile(`type\s*=\s*\{?["']password["']`)
+	signingIn     = compile(`\b(?i:log[ -]?in|sign[ -]?(?:in|up)|(?:confirm|current|new)[ _-]?password)(?:\b|[A-Z_])`)
+)
 
 func (p *project) login() {
 	var l *Login
 	for _, lg := range logins {
 		for _, n := range p.code {
-			if lg.re.MatchString(p.text[n]) || lg.provider == "replit" && authPath.MatchString(n) {
+			t := p.text[n]
+			if lg.re.MatchString(t) || lg.provider == "replit" && authPath.MatchString(n) ||
+				lg.provider == "own" && passwordField.MatchString(t) && (signingIn.MatchString(n) || signingIn.MatchString(t)) {
 				if l == nil {
 					l = &Login{Provider: lg.provider}
 				}
@@ -633,7 +718,7 @@ var (
 	cronLib     = compile("\\b(?:cron\\.schedule|scheduleJob|new CronJob)\\(\\s*[\"'`]([^\"'`]+)[\"'`]")
 	pgCron      = compile(`\bcron\.schedule\(\s*'[^']*'\s*,\s*'([^']+)'`)
 	pyScheduler = compile(`\b(?:BackgroundScheduler|AsyncIOScheduler|BlockingScheduler)\(|\.add_job\(|\bschedule\.every\(|@\w+\.scheduled_job\(`)
-	ghCron      = compile(`\bcron:\s*["']([^"']+)["']`)
+	namedFunc   = compile(`\bfunction\s+(\w+)\s*\([^)]*\)[^{;\n]*\{|\b(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?(?:\([^)]*\)[^=;\n{]*|\w+\s*)=>\s*\{`)
 )
 
 func (p *project) schedules() {
@@ -646,10 +731,6 @@ func (p *project) schedules() {
 		switch {
 		case path.Ext(n) == ".sql":
 			for _, m := range pgCron.FindAllStringSubmatch(t, -1) {
-				put(m[1], "")
-			}
-		case strings.HasPrefix(n, ".github/workflows/"):
-			for _, m := range ghCron.FindAllStringSubmatch(t, -1) {
 				put(m[1], "")
 			}
 		case path.Base(n) == "vercel.json":
@@ -665,9 +746,63 @@ func (p *project) schedules() {
 			for _, m := range cronLib.FindAllStringSubmatch(t, -1) {
 				put(m[1], "")
 			}
-			if strings.Contains(t, "setInterval(") || strings.Contains(t, "time.NewTicker(") || isPython(n) && pyScheduler.MatchString(t) {
+			if strings.Contains(t, "setInterval(") || strings.Contains(t, "time.NewTicker(") || isPython(n) && pyScheduler.MatchString(t) || rescheduled(t) {
 				put("", "")
 			}
+		}
+	}
+}
+
+// rescheduled says whether a function in t, as one of its own statements, sets a timeout
+// that calls it again: a timer made of setTimeout. One inside a callback or a catch block is
+// a retry or a reconnect. One pass over t keeps each brace's function and open parentheses;
+// a call longer than 2 KB is not read, so a hostile file stays quick.
+func rescheduled(t string) bool {
+	if !strings.Contains(t, "setTimeout(") {
+		return false
+	}
+	named := map[int]string{}
+	for _, loc := range namedFunc.FindAllStringSubmatchIndex(t, -1) {
+		named[loc[1]-1] = sub(t, loc, 1) + sub(t, loc, 2)
+	}
+	type block struct {
+		fn     string
+		parens int
+	}
+	in := []block{{}}
+	for i := range len(t) {
+		top := &in[len(in)-1]
+		switch {
+		case t[i] == '{':
+			in = append(in, block{fn: named[i]})
+		case t[i] == '}' && len(in) > 1:
+			in = in[:len(in)-1]
+		case t[i] == '(':
+			top.parens++
+		case t[i] == ')':
+			top.parens--
+		case top.fn != "" && top.parens == 0 && strings.HasPrefix(t[i:], "setTimeout("):
+			call := t[i+len("setTimeout"):]
+			if hasWord(balanced(call[:min(len(call), 2048)], '(', ')'), top.fn) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// hasWord says whether s holds w as a whole word of code.
+func hasWord(s, w string) bool {
+	word := func(b byte) bool {
+		return b == '_' || b == '$' || '0' <= b && b <= '9' || 'a' <= b|0x20 && b|0x20 <= 'z'
+	}
+	for i := 0; ; i++ {
+		j := strings.Index(s[i:], w)
+		if j < 0 {
+			return false
+		}
+		if i += j; (i == 0 || !word(s[i-1])) && (i+len(w) == len(s) || !word(s[i+len(w)])) {
+			return true
 		}
 	}
 }
@@ -729,10 +864,13 @@ func (p *project) uploads() {
 	}
 }
 
+const testPath = `(^|/)(tests?|e2e|__tests__)/|\.(test|spec)\.[jt]sx?$|(^|/)test_\w+\.py$|_test\.go$`
+
 var (
 	anyURLHost = compile(`\b[a-z][a-z0-9+.-]*://(?:[^\s@/"'<>]*@)?([A-Za-z0-9.-]+)(:\d+)?`)
 	bareIP     = compile(`\b(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b`)
-	notRuntime = compile(`(^|/)(tests?|e2e|__tests__|docs?)/|\.(test|spec)\.[jt]sx?$|(^|/)[\w-]+\.config\.[cm]?[jt]s$|(^|/)test_\w+\.py$|_test\.go$`)
+	testFile   = compile(testPath)
+	notRuntime = compile(testPath + `|(^|/)docs?/|(^|/)[\w-]+\.config\.[cm]?[jt]s$`)
 	privateTLD = []string{".local", ".lan", ".internal", ".corp", ".home.arpa", ".localdomain"}
 )
 

@@ -8,7 +8,7 @@ import (
 
 // Left is one thing that stands between the app and llocal's standard shape, in a sentence
 // for someone who doesn't program. Kind is what it is, for an agent to act on: unknown,
-// servers, docker, private, login, database, browser, server, functions, secrets,
+// servers, docker, private, build, login, database, browser, server, functions, secrets,
 // schedules, webhooks, uploads, packages or recipe.
 type Left struct {
 	Kind string `json:"kind"`
@@ -34,6 +34,8 @@ func (p *Plan) left(s Survey) {
 			put("servers", "It holds %s, and llocal runs one server for each app.", s.serverList())
 		case "container":
 			put("docker", "It comes with Docker files, which llocal doesn't run: anything they install or start besides the app has to go, or move into the app.")
+		case "two_languages":
+			put("build", "Its pages are built with Node and its %s server runs on Python, and no llocal setup has both: the pages are built before they are uploaded, or the server is rewritten in Go.", s.serverLabel())
 		}
 	}
 	for _, d := range s.DataStores {

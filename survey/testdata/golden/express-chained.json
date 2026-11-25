@@ -1,0 +1,108 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its Express server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own Express server and a React front end.",
+      "2 pages: / and /orders/{orderId}.",
+      "4 server routes, like GET /api/orders, POST /api/orders, DELETE /api/orders/{orderId} and 1 more."
+    ],
+    "left": [
+      {
+        "kind": "server",
+        "text": "Its Express server (4 routes in 3 files, 1 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The Express server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ],
+    "dropped": [
+      "PORT"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "javascript"
+    ],
+    "frameworks": [
+      "express",
+      "react",
+      "react-router"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "express",
+        "files": 3,
+        "bytes": 1482
+      }
+    ],
+    "pages": [
+      {
+        "path": "/",
+        "file": "client/App.js"
+      },
+      {
+        "path": "/orders/{orderId}",
+        "file": "client/App.js"
+      }
+    ],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/orders",
+        "file": "server/orders.js"
+      },
+      {
+        "method": "POST",
+        "path": "/api/orders",
+        "file": "server/orders.js"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/orders/{orderId}",
+        "file": "server/orders.js"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/orders/{orderId}",
+        "file": "server/orders.js"
+      }
+    ],
+    "data_stores": [],
+    "env": [
+      {
+        "name": "PORT",
+        "files": [
+          "server/index.js"
+        ],
+        "service": "platform"
+      }
+    ],
+    "packages": [
+      {
+        "name": "express",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-router-dom",
+        "manifest": "package.json"
+      }
+    ]
+  }
+}

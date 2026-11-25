@@ -112,7 +112,9 @@
               "email",
               "name"
             ],
-            "file": "prisma/schema.prisma"
+            "file": "prisma/schema.prisma",
+            "defined": true,
+            "key": true
           },
           {
             "name": "tasks",
@@ -123,7 +125,12 @@
               "due_at",
               "owner_id"
             ],
-            "file": "prisma/schema.prisma"
+            "file": "prisma/schema.prisma",
+            "defined": true,
+            "key": true,
+            "references": [
+              "User"
+            ]
           }
         ]
       }
@@ -179,6 +186,37 @@
         ],
         "service": "login"
       }
-    ]
+    ],
+    "packages": [
+      {
+        "name": "@prisma/client",
+        "manifest": "package.json"
+      },
+      {
+        "name": "next",
+        "manifest": "package.json"
+      },
+      {
+        "name": "next-auth",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "package.json"
+      }
+    ],
+    "screens": {
+      "files": 3,
+      "words": 2,
+      "controls": 2,
+      "colors": 0,
+      "font_sizes": 0,
+      "viewport": true,
+      "responsive": 0
+    }
   }
 }

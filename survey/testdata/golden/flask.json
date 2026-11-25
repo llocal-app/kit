@@ -154,7 +154,9 @@
               "email",
               "password_hash"
             ],
-            "file": "app.py"
+            "file": "app.py",
+            "defined": true,
+            "key": true
           },
           {
             "name": "work_orders",
@@ -165,7 +167,12 @@
               "photo",
               "owner_id"
             ],
-            "file": "app.py"
+            "file": "app.py",
+            "defined": true,
+            "key": true,
+            "references": [
+              "user"
+            ]
           }
         ]
       }
@@ -225,6 +232,50 @@
         "kind": "form",
         "file": "templates/index.html"
       }
-    ]
+    ],
+    "packages": [
+      {
+        "name": "flask",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "flask-login",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "flask-sqlalchemy",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "gunicorn",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "psycopg2-binary",
+        "manifest": "requirements.txt"
+      },
+      {
+        "name": "sendgrid",
+        "manifest": "requirements.txt"
+      }
+    ],
+    "screens": {
+      "files": 2,
+      "words": 8,
+      "controls": 5,
+      "colors": 0,
+      "font_sizes": 0,
+      "responsive": 0,
+      "signs": [
+        {
+          "kind": "field_no_label",
+          "count": 3,
+          "files": [
+            "templates/index.html",
+            "templates/login.html"
+          ]
+        }
+      ]
+    }
   }
 }

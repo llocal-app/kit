@@ -148,6 +148,7 @@ func TestNamedCases(t *testing.T) {
 		"docker":       "container",
 		"office-db":    "private_database",
 		"replit":       "host_login",
+		"python-node":  "two_languages",
 		"empty":        "unknown",
 	} {
 		dir := filepath.Join("testdata", fixture)
@@ -239,6 +240,26 @@ func TestMountedRoutes(t *testing.T) {
 	}
 	if want := []string{"GET /api/items", "GET /api/items/{id}"}; !slices.Equal(got, want) {
 		t.Errorf("routes %v, want %v", got, want)
+	}
+}
+
+// TestRenamedTables: a table rebuilt under a new name and renamed back is one table, and so
+// is one moved out of the way and made again under its own name.
+func TestRenamedTables(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, map[string]string{
+		"package.json":       `{"dependencies": {"better-sqlite3": "11"}}`,
+		"migrations/001.sql": "CREATE TABLE jobs (id integer, title text);\nCREATE TABLE crews (id integer);\n",
+		"migrations/002.sql": "CREATE TABLE new_jobs (id integer, title text, due text);\nINSERT INTO new_jobs SELECT id, title, NULL FROM jobs;\n" +
+			"DROP TABLE jobs;\nALTER TABLE new_jobs RENAME TO jobs;\n",
+		"migrations/003.sql": "ALTER TABLE crews RENAME TO crews_old;\nCREATE TABLE crews (id integer, lead text);\nDROP TABLE crews_old;\n",
+	})
+	var got []string
+	for _, tb := range run(t, dir).DataStores[0].Tables {
+		got = append(got, tb.Name+" "+strings.Join(tb.Columns, ","))
+	}
+	if want := []string{"jobs id,title,due", "crews id,lead"}; !slices.Equal(got, want) {
+		t.Errorf("tables %q, want %q", got, want)
 	}
 }
 

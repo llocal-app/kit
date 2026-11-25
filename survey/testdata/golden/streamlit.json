@@ -109,7 +109,9 @@
               "hours",
               "rate"
             ],
-            "file": "app.py"
+            "file": "app.py",
+            "defined": true,
+            "key": true
           }
         ]
       }

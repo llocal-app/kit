@@ -210,7 +210,9 @@
               "name",
               "email"
             ],
-            "file": "drizzle/migrations/0000_invoices.sql"
+            "file": "drizzle/migrations/0000_invoices.sql",
+            "defined": true,
+            "key": true
           },
           {
             "name": "invoices",
@@ -221,7 +223,12 @@
               "status",
               "paid_at"
             ],
-            "file": "drizzle/migrations/0000_invoices.sql"
+            "file": "drizzle/migrations/0000_invoices.sql",
+            "defined": true,
+            "key": true,
+            "references": [
+              "customers"
+            ]
           }
         ]
       }
@@ -363,6 +370,57 @@
         "service": "stripe",
         "file": "src/routes/api/public/stripe-webhook.ts"
       }
-    ]
+    ],
+    "packages": [
+      {
+        "name": "@lovable.dev/cloud-auth-js",
+        "manifest": "package.json"
+      },
+      {
+        "name": "@supabase/supabase-js",
+        "manifest": "package.json"
+      },
+      {
+        "name": "@tanstack/react-router",
+        "manifest": "package.json"
+      },
+      {
+        "name": "@tanstack/react-start",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "package.json"
+      },
+      {
+        "name": "stripe",
+        "manifest": "package.json"
+      },
+      {
+        "name": "zod",
+        "manifest": "package.json"
+      }
+    ],
+    "screens": {
+      "files": 5,
+      "words": 9,
+      "controls": 6,
+      "colors": 0,
+      "font_sizes": 0,
+      "responsive": 0,
+      "signs": [
+        {
+          "kind": "field_no_label",
+          "count": 2,
+          "files": [
+            "src/routes/auth.tsx"
+          ]
+        }
+      ]
+    }
   }
 }

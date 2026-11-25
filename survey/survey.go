@@ -44,7 +44,12 @@ type Survey struct {
 	Containers  []Container `json:"containers,omitempty"`
 	// UnlistedPackages are the Python packages the code imports, when it has no
 	// requirements file to say so.
-	UnlistedPackages []string `json:"unlisted_packages,omitempty"`
+	UnlistedPackages []string  `json:"unlisted_packages,omitempty"`
+	Packages         []Package `json:"packages,omitempty"`
+	Repeated         *Repeated `json:"repeated,omitempty"`
+	Screens          *Screens  `json:"screens,omitempty"`
+	// Leftovers are the folders and files whose names say they are old copies or backups.
+	Leftovers []string `json:"leftovers,omitempty"`
 	// Incomplete says why only part of the project was read, when a cap was reached.
 	Incomplete string `json:"incomplete,omitempty"`
 }
@@ -87,10 +92,18 @@ type DataStore struct {
 	Tables  []Table  `json:"tables"`
 }
 
+// Table is a table or collection. Defined says the survey read its definition (SQL, Prisma,
+// SQLAlchemy or Drizzle), so Key, References, JSON and Lists say what that holds: whether it
+// has a primary key, the tables it refers to, and its columns of JSON and of lists.
 type Table struct {
-	Name    string   `json:"name"`
-	Columns []string `json:"columns,omitempty"`
-	File    string   `json:"file,omitempty"`
+	Name       string   `json:"name"`
+	Columns    []string `json:"columns,omitempty"`
+	File       string   `json:"file,omitempty"`
+	Defined    bool     `json:"defined,omitempty"`
+	Key        bool     `json:"key,omitempty"`
+	References []string `json:"references,omitempty"`
+	JSON       []string `json:"json,omitempty"`
+	Lists      []string `json:"lists,omitempty"`
 }
 
 // Login is the app's own login. Provider is supabase, replit, lovable, clerk, nextauth,
@@ -202,6 +215,7 @@ type project struct {
 
 	code    []string            // the code files read, in walk order
 	deps    map[string][]string // manifest -> dependency names
+	runtime map[string][]string // manifest -> the dependencies the app runs on, sorted
 	imports map[string][]string // file -> packages it imports
 	browser map[string]bool     // file -> runs in visitors' browsers
 }
@@ -258,16 +272,16 @@ func wanted(name string) bool {
 	if strings.HasSuffix(base, ".min.js") || strings.HasSuffix(base, ".d.ts") || inToolFolder(name) {
 		return false
 	}
-	return IsCode(name) || IsEnvFile(name) || isRequirements(base) || isDockerfile(base) || strings.HasPrefix(name, ".github/workflows/") ||
+	return IsCode(name) || IsEnvFile(name) || isRequirements(base) || isDockerfile(base) ||
 		slices.Contains(dataExts, path.Ext(base)) || slices.Contains(readNames, base) || slices.Contains(composeNames, base)
 }
 
-// inToolFolder says whether a file is in a folder like .bolt or .lovable, which hold a
-// tool's own files rather than the app's. Their names still say which tool made the app.
+// inToolFolder says whether a file is in a folder like .bolt, .lovable or .github, which
+// hold a tool's own files rather than the app's. Their names still say which tool made the
+// app.
 func inToolFolder(name string) bool {
 	dir := path.Dir(name)
-	return (strings.HasPrefix(dir, ".") && dir != "." || strings.Contains(dir, "/.")) &&
-		!strings.HasPrefix(name, ".github/workflows/") && !strings.Contains(name, ".streamlit/")
+	return (strings.HasPrefix(dir, ".") && dir != "." || strings.Contains(dir, "/.")) && !strings.Contains(name, ".streamlit/")
 }
 
 func isRequirements(base string) bool {

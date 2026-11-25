@@ -1,0 +1,89 @@
+{
+  "plan": {
+    "shape": "static",
+    "why": "It is only pages and needs no server of its own, so it goes online as it is.",
+    "found": [
+      "A React website.",
+      "1 page: /.",
+      "Outside services: Cloudinary (file storage).",
+      "People upload files."
+    ],
+    "left": [
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "Nothing to convert.",
+        "detail": "llocal puts the pages online as they are, behind sign-in."
+      }
+    ],
+    "outside": [
+      {
+        "text": "Cloudinary (file storage) stays connected.",
+        "detail": "No setting holds its key, so the key stays where it is in the code, if it has one. Visitors' browsers talk to it directly."
+      }
+    ]
+  },
+  "survey": {
+    "languages": [
+      "typescript"
+    ],
+    "frameworks": [
+      "react",
+      "vite"
+    ],
+    "pages": [
+      {
+        "path": "/"
+      }
+    ],
+    "routes": [],
+    "data_stores": [],
+    "services": [
+      {
+        "name": "cloudinary",
+        "kind": "file storage",
+        "browser": true,
+        "files": [
+          "src/LogoUpload.tsx"
+        ]
+      }
+    ],
+    "uploads": [
+      {
+        "kind": "form",
+        "file": "src/LogoUpload.tsx"
+      }
+    ],
+    "packages": [
+      {
+        "name": "react",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "package.json"
+      }
+    ],
+    "screens": {
+      "files": 3,
+      "words": 1,
+      "controls": 1,
+      "colors": 0,
+      "font_sizes": 0,
+      "responsive": 0,
+      "signs": [
+        {
+          "kind": "field_no_label",
+          "count": 1,
+          "files": [
+            "src/LogoUpload.tsx"
+          ]
+        }
+      ]
+    }
+  }
+}

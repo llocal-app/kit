@@ -133,7 +133,12 @@
               "letter",
               "created_at"
             ],
-            "file": "supabase/migrations/20250612093011_quiet_lake.sql"
+            "file": "supabase/migrations/20250612093011_quiet_lake.sql",
+            "defined": true,
+            "key": true,
+            "references": [
+              "users"
+            ]
           }
         ]
       }
@@ -188,6 +193,47 @@
         "set": true,
         "service": "supabase"
       }
-    ]
+    ],
+    "packages": [
+      {
+        "name": "@supabase/supabase-js",
+        "manifest": "package.json"
+      },
+      {
+        "name": "lucide-react",
+        "manifest": "package.json",
+        "unused": true
+      },
+      {
+        "name": "openai",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "package.json"
+      }
+    ],
+    "screens": {
+      "files": 5,
+      "words": 6,
+      "controls": 4,
+      "colors": 0,
+      "font_sizes": 0,
+      "viewport": true,
+      "responsive": 0,
+      "signs": [
+        {
+          "kind": "field_no_label",
+          "count": 2,
+          "files": [
+            "src/components/Login.tsx"
+          ]
+        }
+      ]
+    }
   }
 }

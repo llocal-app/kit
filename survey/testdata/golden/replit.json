@@ -155,7 +155,12 @@
               "sess",
               "expire"
             ],
-            "file": "shared/schema.ts"
+            "file": "shared/schema.ts",
+            "defined": true,
+            "key": true,
+            "json": [
+              "sess"
+            ]
           },
           {
             "name": "users",
@@ -166,7 +171,9 @@
               "last_name",
               "created_at"
             ],
-            "file": "shared/schema.ts"
+            "file": "shared/schema.ts",
+            "defined": true,
+            "key": true
           },
           {
             "name": "tools",
@@ -177,7 +184,12 @@
               "checked_out_at",
               "uses"
             ],
-            "file": "shared/schema.ts"
+            "file": "shared/schema.ts",
+            "defined": true,
+            "key": true,
+            "references": [
+              "users"
+            ]
           }
         ]
       }
@@ -243,6 +255,74 @@
         "looks": "secret_key",
         "service": "login"
       }
-    ]
+    ],
+    "packages": [
+      {
+        "name": "@neondatabase/serverless",
+        "manifest": "package.json"
+      },
+      {
+        "name": "@tanstack/react-query",
+        "manifest": "package.json"
+      },
+      {
+        "name": "connect-pg-simple",
+        "manifest": "package.json"
+      },
+      {
+        "name": "drizzle-orm",
+        "manifest": "package.json"
+      },
+      {
+        "name": "drizzle-zod",
+        "manifest": "package.json",
+        "unused": true
+      },
+      {
+        "name": "express",
+        "manifest": "package.json"
+      },
+      {
+        "name": "express-session",
+        "manifest": "package.json"
+      },
+      {
+        "name": "memoizee",
+        "manifest": "package.json"
+      },
+      {
+        "name": "openid-client",
+        "manifest": "package.json"
+      },
+      {
+        "name": "passport",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "package.json"
+      },
+      {
+        "name": "wouter",
+        "manifest": "package.json"
+      },
+      {
+        "name": "ws",
+        "manifest": "package.json"
+      }
+    ],
+    "screens": {
+      "files": 2,
+      "words": 2,
+      "controls": 0,
+      "colors": 0,
+      "font_sizes": 0,
+      "viewport": true,
+      "responsive": 0
+    }
   }
 }

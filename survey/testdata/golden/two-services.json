@@ -110,7 +110,9 @@
               "customer",
               "total"
             ],
-            "file": "api/index.js"
+            "file": "api/index.js",
+            "defined": true,
+            "key": true
           }
         ]
       }
@@ -128,6 +130,24 @@
         "files": [
           "api/index.js"
         ]
+      }
+    ],
+    "packages": [
+      {
+        "name": "better-sqlite3",
+        "manifest": "api/package.json"
+      },
+      {
+        "name": "express",
+        "manifest": "api/package.json"
+      },
+      {
+        "name": "fastapi",
+        "manifest": "pricer/requirements.txt"
+      },
+      {
+        "name": "uvicorn",
+        "manifest": "pricer/requirements.txt"
       }
     ]
   }

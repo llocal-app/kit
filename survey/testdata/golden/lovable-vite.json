@@ -157,7 +157,12 @@
               "full_name",
               "created_at"
             ],
-            "file": "supabase/migrations/20250301120000_8f1c2a.sql"
+            "file": "supabase/migrations/20250301120000_8f1c2a.sql",
+            "defined": true,
+            "key": true,
+            "references": [
+              "users"
+            ]
           },
           {
             "name": "jobs",
@@ -170,7 +175,12 @@
               "quote_cents",
               "created_at"
             ],
-            "file": "supabase/migrations/20250301120000_8f1c2a.sql"
+            "file": "supabase/migrations/20250301120000_8f1c2a.sql",
+            "defined": true,
+            "key": true,
+            "references": [
+              "users"
+            ]
           }
         ]
       }
@@ -254,6 +264,52 @@
         "kind": "form",
         "file": "src/pages/Job.tsx"
       }
-    ]
+    ],
+    "packages": [
+      {
+        "name": "@supabase/supabase-js",
+        "manifest": "package.json"
+      },
+      {
+        "name": "@tanstack/react-query",
+        "manifest": "package.json"
+      },
+      {
+        "name": "lucide-react",
+        "manifest": "package.json",
+        "unused": true
+      },
+      {
+        "name": "react",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-router-dom",
+        "manifest": "package.json"
+      }
+    ],
+    "screens": {
+      "files": 7,
+      "words": 10,
+      "controls": 7,
+      "colors": 0,
+      "font_sizes": 0,
+      "viewport": true,
+      "responsive": 0,
+      "signs": [
+        {
+          "kind": "field_no_label",
+          "count": 3,
+          "files": [
+            "src/pages/Auth.tsx",
+            "src/pages/Job.tsx"
+          ]
+        }
+      ]
+    }
   }
 }

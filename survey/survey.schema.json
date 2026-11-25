@@ -78,7 +78,12 @@
               "properties": {
                 "name": { "type": "string" },
                 "columns": { "type": "array", "items": { "type": "string" } },
-                "file": { "type": "string", "description": "Where the table is defined, or first used." }
+                "file": { "type": "string", "description": "Where the table is defined, or first used." },
+                "defined": { "type": "boolean", "description": "Its definition was read (SQL, Prisma, SQLAlchemy or Drizzle), so key, references, json and lists say what it holds." },
+                "key": { "type": "boolean", "description": "It has a primary key." },
+                "references": { "type": "array", "items": { "type": "string" }, "description": "The tables its foreign keys point at." },
+                "json": { "type": "array", "items": { "type": "string" }, "description": "Its columns of JSON." },
+                "lists": { "type": "array", "items": { "type": "string" }, "description": "Its columns that hold lists (arrays)." }
               }
             }
           }
@@ -211,6 +216,60 @@
       }
     },
     "unlisted_packages": { "type": "array", "items": { "type": "string" }, "description": "Python packages the code imports, when there is no requirements file." },
+    "packages": {
+      "type": "array",
+      "description": "The packages each manifest lists for the app to run, development tools left out.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "manifest"],
+        "properties": {
+          "name": { "type": "string" },
+          "manifest": { "type": "string" },
+          "unused": { "type": "boolean", "description": "No file imports or names it, no other package listed needs it, and the app isn't started with it." }
+        }
+      }
+    },
+    "repeated": {
+      "type": "object",
+      "description": "Code that appears in more than one file, 8 lines or more at a time.",
+      "additionalProperties": false,
+      "required": ["lines", "files"],
+      "properties": {
+        "lines": { "type": "integer", "description": "Lines, in all the files together, in a run found in another file too." },
+        "files": { "$ref": "#/$defs/files" }
+      }
+    },
+    "screens": {
+      "type": "object",
+      "description": "What the front end's source shows about its screens, over the files that hold markup.",
+      "additionalProperties": false,
+      "required": ["files", "words", "controls", "colors", "font_sizes", "responsive"],
+      "properties": {
+        "files": { "type": "integer" },
+        "words": { "type": "integer", "description": "Words of text in the markup." },
+        "controls": { "type": "integer", "description": "Buttons, links, fields and lists to pick from." },
+        "colors": { "type": "integer", "description": "Different colours the code names." },
+        "font_sizes": { "type": "integer", "description": "Different font sizes the code names." },
+        "viewport": { "type": "boolean", "description": "A page sets the viewport for phones, or the framework does." },
+        "responsive": { "type": "integer", "description": "Layout rules for screen widths: media queries and classes like md:." },
+        "signs": {
+          "type": "array",
+          "description": "Accessibility basics the markup misses.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "count", "files"],
+            "properties": {
+              "kind": { "enum": ["image_no_alt", "field_no_label", "icon_button", "heading_skip", "low_contrast"] },
+              "count": { "type": "integer" },
+              "files": { "$ref": "#/$defs/files" }
+            }
+          }
+        }
+      }
+    },
+    "leftovers": { "type": "array", "items": { "type": "string" }, "description": "Folders and files whose names say they are old copies or backups." },
     "incomplete": { "type": "string", "description": "Why only part of the project was read, when a cap was reached." }
   }
 }

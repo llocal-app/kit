@@ -210,7 +210,9 @@
               "password_hash",
               "name"
             ],
-            "file": "db/schema.sql"
+            "file": "db/schema.sql",
+            "defined": true,
+            "key": true
           },
           {
             "name": "jobs",
@@ -223,7 +225,12 @@
               "invoice_id",
               "paid"
             ],
-            "file": "db/schema.sql"
+            "file": "db/schema.sql",
+            "defined": true,
+            "key": true,
+            "references": [
+              "users"
+            ]
           }
         ]
       }
@@ -331,6 +338,69 @@
         "kind": "server",
         "file": "server.js"
       }
-    ]
+    ],
+    "packages": [
+      {
+        "name": "bcrypt",
+        "manifest": "package.json"
+      },
+      {
+        "name": "dotenv",
+        "manifest": "package.json"
+      },
+      {
+        "name": "express",
+        "manifest": "package.json"
+      },
+      {
+        "name": "express-session",
+        "manifest": "package.json"
+      },
+      {
+        "name": "multer",
+        "manifest": "package.json"
+      },
+      {
+        "name": "node-cron",
+        "manifest": "package.json"
+      },
+      {
+        "name": "passport",
+        "manifest": "package.json"
+      },
+      {
+        "name": "passport-local",
+        "manifest": "package.json"
+      },
+      {
+        "name": "pg",
+        "manifest": "package.json"
+      },
+      {
+        "name": "stripe",
+        "manifest": "package.json"
+      },
+      {
+        "name": "twilio",
+        "manifest": "package.json"
+      }
+    ],
+    "screens": {
+      "files": 1,
+      "words": 3,
+      "controls": 3,
+      "colors": 0,
+      "font_sizes": 0,
+      "responsive": 0,
+      "signs": [
+        {
+          "kind": "field_no_label",
+          "count": 2,
+          "files": [
+            "public/index.html"
+          ]
+        }
+      ]
+    }
   }
 }

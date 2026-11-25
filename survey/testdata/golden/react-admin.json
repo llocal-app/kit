@@ -1,0 +1,163 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its pages talk straight to Supabase, so llocal gives it a small server of its own, written in Go, and keeps the data in SQLite.",
+    "found": [
+      "A React website.",
+      "1 page: /.",
+      "A Supabase database, with 2 tables: vendors and purchase_orders. Visitors' browsers talk to it directly."
+    ],
+    "left": [
+      {
+        "kind": "database",
+        "text": "Its data is in Supabase (2 tables) and moves into one SQLite file beside the app."
+      },
+      {
+        "kind": "browser",
+        "text": "Visitors' browsers talk to Supabase directly. Those calls go through the app's own server instead."
+      },
+      {
+        "kind": "server",
+        "text": "It has no server of its own, and needs a small one in Go, on llocal's kit, for the work Supabase does for its pages."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The Supabase data moves into one SQLite file on llocal, copied over once.",
+        "detail": "SQLite sits right next to the app, so it is fast, it is backed up with the app, and only people who can open the app reach the data."
+      },
+      {
+        "text": "The pages stop talking to the database directly and ask the app's own server instead.",
+        "detail": "Today each visitor's browser reaches the database with a key anyone can read in the pages, and only the database's own rules stand in the way. On llocal only people who have signed in reach the data, and only through the server, which checks the same rules."
+      },
+      {
+        "text": "llocal adds a small server, written in Go, that does the work Supabase did for the pages.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ],
+    "needs": [
+      {
+        "text": "So we can copy your data once: a key that can read every table of your Supabase project. The service_role key (Supabase \u003e Project Settings \u003e API Keys) or the database password will do. It is used for the copy, then thrown away."
+      }
+    ],
+    "dropped": [
+      "VITE_SUPABASE_ANON_KEY",
+      "VITE_SUPABASE_URL"
+    ],
+    "if_not_converted": "Until it is converted, the Supabase database is reached straight from each visitor's browser, and llocal's sign-in does not stand in front of it: anyone who has its address and the key in the pages can try to read it."
+  },
+  "survey": {
+    "languages": [
+      "typescript"
+    ],
+    "frameworks": [
+      "react",
+      "vite"
+    ],
+    "pages": [
+      {
+        "path": "/"
+      }
+    ],
+    "routes": [],
+    "data_stores": [
+      {
+        "kind": "supabase",
+        "browser": true,
+        "env": [
+          "VITE_SUPABASE_ANON_KEY",
+          "VITE_SUPABASE_URL"
+        ],
+        "files": [
+          "src/dataProvider.ts",
+          "src/supabase.ts"
+        ],
+        "tables": [
+          {
+            "name": "vendors",
+            "columns": [
+              "id",
+              "name",
+              "phone"
+            ],
+            "file": "supabase/migrations/20250301120000_init.sql",
+            "defined": true,
+            "key": true
+          },
+          {
+            "name": "purchase_orders",
+            "columns": [
+              "id",
+              "vendor_id",
+              "total",
+              "ordered_on"
+            ],
+            "file": "supabase/migrations/20250301120000_init.sql",
+            "defined": true,
+            "key": true,
+            "references": [
+              "vendors"
+            ]
+          }
+        ]
+      }
+    ],
+    "env": [
+      {
+        "name": "VITE_SUPABASE_ANON_KEY",
+        "files": [
+          "src/dataProvider.ts",
+          "src/supabase.ts",
+          ".env.example"
+        ],
+        "browser": true,
+        "looks": "publishable",
+        "service": "supabase"
+      },
+      {
+        "name": "VITE_SUPABASE_URL",
+        "files": [
+          "src/dataProvider.ts",
+          "src/supabase.ts",
+          ".env.example"
+        ],
+        "browser": true,
+        "service": "supabase"
+      }
+    ],
+    "packages": [
+      {
+        "name": "@supabase/supabase-js",
+        "manifest": "package.json"
+      },
+      {
+        "name": "ra-supabase-core",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-admin",
+        "manifest": "package.json"
+      },
+      {
+        "name": "react-dom",
+        "manifest": "package.json"
+      }
+    ],
+    "screens": {
+      "files": 2,
+      "words": 1,
+      "controls": 0,
+      "colors": 0,
+      "font_sizes": 0,
+      "responsive": 0
+    }
+  }
+}
