@@ -1,5 +1,5 @@
 {
-  "published": false,
+  "published": true,
   "server": "https://llocal.app/mcp",
   "prompt": "Host this project on llocal. Follow https://llocal.app/agent.md step by step.",
   "fix_prompt": "My app on llocal didn't go live (app_id {app_id}). Call deployment_status for it and follow step 7 of https://llocal.app/agent.md.",
@@ -77,7 +77,7 @@
     {
       "name": "Claude Code plugin",
       "text": "claude plugin marketplace add llocal-app/kit && claude plugin install llocal@llocal",
-      "note": "Works once the kit's repository, github.com/llocal-app/kit, is public."
+      "note": "From the kit's public repository, github.com/llocal-app/kit."
     },
     {
       "name": "Cursor rule",
