@@ -9,6 +9,11 @@ class ToolBase(SQLModel):
 
 
 class Tool(ToolBase, table=True):
+    """A tool in the shop.
+
+    Note: a serial is unique across the shop.
+    """
+
     id: int | None = Field(default=None, primary_key=True)
     retired: bool = Field(default=False)
 

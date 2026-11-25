@@ -77,6 +77,29 @@ func edit(t *testing.T, file, old, new string) {
 	}
 }
 
+// notesApp is the starter's server with only GET /api/notes, which first does read, and
+// GET /api/notes/{id}, which finds no note.
+func notesApp(read string) string {
+	return `package main
+
+import (
+	"net/http"
+
+	"llocal.app/kit"
+)
+
+func main() {
+	app := kit.New()
+	app.Get("/api/notes", func(w http.ResponseWriter, r *http.Request) {
+		` + read + `
+		kit.JSON(w, http.StatusOK, []string{})
+	})
+	app.Get("/api/notes/{id}", func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
+	app.Run()
+}
+`
+}
+
 func survey(t *testing.T) Survey {
 	s, err := LoadSurvey("testdata/survey.json")
 	if err != nil {
@@ -94,7 +117,7 @@ func TestStarterPasses(t *testing.T) {
 	for _, c := range r.Checks {
 		names = append(names, c.Name)
 	}
-	if got := strings.Join(names, " "); got != "recipe build old-database login start pages routes writes tables" {
+	if got := strings.Join(names, " "); got != "recipe build old-database login start pages routes reads writes tables data-copy" {
 		t.Errorf("checks = %s", got)
 	}
 	if r.IdleMemory == 0 || r.StartMillis == 0 || r.DiskBytes == 0 {
@@ -112,6 +135,23 @@ func TestABuiltAppIsCheckedWithoutBuildingIt(t *testing.T) {
 	r := Built(context.Background(), dir, survey(t))
 	if !r.OK || slices.ContainsFunc(r.Checks, func(c Result) bool { return c.Name == "build" }) {
 		t.Fatalf("built check: %+v", r.Checks)
+	}
+}
+
+// A route the app no longer has fails, unless it was the old login's or was marked removed.
+// A route's own 404 for a record an empty database doesn't have is not a route gone.
+func TestRoutesThatMayBeGone(t *testing.T) {
+	s := Survey{Routes: []Route{
+		{Method: "GET", Path: "/api/notes/"},
+		{Method: "POST", Path: "/api/notes", Removed: "the person agreed notes are read-only"},
+		{Method: "POST", Path: "/api/login/access-token"},
+		{Method: "GET", Path: "/api/notes/{id}"},
+		{Method: "GET", Path: "/api/gone/{id}"},
+	}}
+	r := Run(context.Background(), starter(t, map[string]string{"main.go": notesApp("")}), s)
+	i := slices.IndexFunc(r.Checks, func(c Result) bool { return c.Name == "routes" })
+	if i < 0 || r.Checks[i].OK || !strings.HasPrefix(r.Checks[i].Reason, "GET /api/gone/1 answered 404, as where the app has no route") || strings.Contains(r.Checks[i].Reason, "more)") {
+		t.Fatalf("checks: %+v", r.Checks)
 	}
 }
 
@@ -151,6 +191,12 @@ func TestBrokenVariantsFail(t *testing.T) {
 			"broken.go": "package main\n\nfunc init() { undefined() }\n"}},
 		{"bad recipe", "recipe", "a standard app is a Go server on the kit", map[string]string{
 			"llocal.json": `{"shape": "standard", "base": "node", "start": "node server.js", "port": 8080}`}},
+		{"a route gone", "routes", "POST /api/notes answered 405, as where the app has no route", map[string]string{
+			"main.go": notesApp(``)}},
+		{"a read that writes", "reads", "GET /api/notes wrote to the database", map[string]string{
+			"main.go": notesApp(`app.DB.ExecContext(r.Context(), "INSERT INTO notes (body, user_id, by_name) VALUES ('seen', ?, '')", kit.CurrentUser(r).ID)`)}},
+		{"a column the old table lacks", "data-copy", `can't fill table "notes": its column llocal_id is required and the old notes table has no llocal_id`, map[string]string{
+			"db/migrations/001_notes.sql": "CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT NOT NULL, user_id TEXT NOT NULL, by_name TEXT NOT NULL, llocal_id TEXT NOT NULL);\n"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := Run(context.Background(), starter(t, tc.files), survey(t))

@@ -52,7 +52,7 @@
         "dir": ".",
         "framework": "fastapi",
         "files": 2,
-        "bytes": 1653
+        "bytes": 1736
       }
     ],
     "pages": [],
@@ -86,6 +86,8 @@
           {
             "name": "tool",
             "columns": [
+              "name",
+              "serial",
               "id",
               "retired"
             ],
@@ -96,6 +98,8 @@
           {
             "name": "checkout",
             "columns": [
+              "borrower",
+              "due",
               "id",
               "tool_id"
             ],

@@ -300,6 +300,8 @@ var (
 	pyClass      = compile(`(?m)^class\s+(\w+)\s*\(([^)]*)\)\s*:`)
 	pyTableName  = compile(`__tablename__\s*=\s*["'](\w+)["']`)
 	pyColumn     = compile(`(?m)^[ \t]+(\w+)\s*(?::[^=\n]*)?=\s*(?:\w+\.)?(?:Column|mapped_column|Field)\(`)
+	pyField      = compile(`(?m)^[ \t]+(\w+)[ \t]*:[ \t]*([^=\n]*)(?:=[ \t]*(\w*))?`)
+	pyString     = compile(`(?s)""".*?"""|'''.*?'''`)
 	supaTypes    = compile(`(\w+):\s*\{\s*Row:\s*\{([^}]*)\}`)
 	typeKey      = compile(`(?m)^\s*(\w+)\??\s*:`)
 	supaFrom     = compile(`\.from\(\s*["'](\w+)["']\s*\)\s*\.\s*(?:select|insert|update|upsert|delete)\b`)
@@ -521,34 +523,85 @@ func (p *project) prismaTables(n, t string) {
 // with table=True; the others are the shapes of requests and replies.
 func (p *project) pyTables(n, t string) {
 	locs := pyClass.FindAllStringSubmatchIndex(t, -1)
-	sqlmodel := slices.Contains(p.imports[n], "sqlmodel")
+	m := pyModels{classes: map[string]pyModel{}, fields: map[string][]string{}, sqlmodel: slices.Contains(p.imports[n], "sqlmodel")}
 	for i, loc := range locs {
-		bases := sub(t, loc, 2)
-		table := strings.Contains(bases, "table=True") ||
-			!sqlmodel && !strings.Contains(bases, "BaseModel") && (strings.Contains(bases, "Model") || strings.Contains(bases, "Base"))
-		if !table {
-			continue
-		}
 		end := len(t)
 		if i+1 < len(locs) {
 			end = locs[i+1][0]
 		}
-		body := t[loc[1]:end]
-		var cols []string
-		for _, c := range pyColumn.FindAllStringSubmatch(body, -1) {
-			cols = append(cols, c[1])
+		m.classes[sub(t, loc, 1)] = pyModel{sub(t, loc, 2), t[loc[1]:end]}
+	}
+	for _, loc := range locs {
+		class := sub(t, loc, 1)
+		c := m.classes[class]
+		table := strings.Contains(c.bases, "table=True") ||
+			!m.sqlmodel && !strings.Contains(c.bases, "BaseModel") && (strings.Contains(c.bases, "Model") || strings.Contains(c.bases, "Base"))
+		if !table {
+			continue
 		}
+		cols := m.columns(class)
 		if len(cols) == 0 {
 			continue
 		}
-		name := strings.ToLower(camelHump.ReplaceAllString(sub(t, loc, 1), "${1}_${2}"))
-		if m := pyTableName.FindStringSubmatch(body); m != nil {
-			name = m[1]
+		name := strings.ToLower(camelHump.ReplaceAllString(class, "${1}_${2}"))
+		if tn := pyTableName.FindStringSubmatch(c.body); tn != nil {
+			name = tn[1]
 		}
-		if tb := p.addTable("", name, n, cols); tb != nil {
-			tb.pyFacts(body)
+		tb := p.addTable("", name, n, cols)
+		if tb == nil {
+			return
+		}
+		tb.pyFacts(c.body)
+	}
+}
+
+type pyModel struct{ bases, body string }
+
+// pyModels are a file's classes, and the columns each one's own body makes.
+type pyModels struct {
+	classes  map[string]pyModel
+	fields   map[string][]string
+	sqlmodel bool
+}
+
+// columns is a model class's columns, after those of its bases in the same file, reading at
+// most maxList classes: what Column, mapped_column or Field makes, each Mapped[...]
+// attribute, and in SQLModel each annotated attribute but a Relationship or ClassVar.
+func (m pyModels) columns(class string) []string {
+	var cols []string
+	seen := map[string]bool{}
+	var read func(string)
+	read = func(class string) {
+		c, ok := m.classes[class]
+		if !ok || seen[class] || len(seen) > maxList {
+			return
+		}
+		seen[class] = true
+		for _, base := range strings.Split(c.bases, ",") {
+			read(strings.TrimSpace(base))
+		}
+		if _, ok := m.fields[class]; !ok {
+			m.fields[class] = m.own(c.body)
+		}
+		cols = append(cols, m.fields[class]...)
+	}
+	read(class)
+	return cols
+}
+
+func (m pyModels) own(body string) []string {
+	var cols []string
+	for _, c := range pyColumn.FindAllStringSubmatch(body, -1) {
+		cols = append(cols, c[1])
+	}
+	for _, f := range pyField.FindAllStringSubmatch(pyString.ReplaceAllString(body, ""), -1) {
+		typ := strings.TrimSpace(f[2])
+		if typ != "" && (m.sqlmodel || strings.HasPrefix(typ, "Mapped[")) && !strings.Contains(typ, "ClassVar") &&
+			!strings.EqualFold(f[3], "relationship") && f[1] != "model_config" {
+			cols = append(cols, f[1])
 		}
 	}
+	return cols
 }
 
 var logins = []struct {

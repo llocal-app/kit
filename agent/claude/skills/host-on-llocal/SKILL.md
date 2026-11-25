@@ -23,9 +23,14 @@ The work is a loop: scan, change, check, upload, repeat. In short:
 7. `set_secret`, `deploy`, `deployment_status`; on a failed check read `logs`, fix, `push`.
 8. `invite` and `set_access`, then give the person the preview link. Going live is theirs.
 
+Without llocal's tools (not signed in yet, or the person can't sign in yet), don't stop: do
+agent.md's "Not signed in yet" here, with `llocal-survey` and `llocal-check` from the public
+kit, commit, and hand back what is left: connecting and signing in, then the upload.
+
 Always:
 
-- This needs Claude Sonnet or better. A smaller model stops and says so.
+- Say which model you are before you change code. Rewriting the server needs Claude Opus or
+  Sonnet; Haiku does only the scan, the plan, `llocal.json` where that is all, and the upload.
 - llocal's own agent (`request_convert`) converts an app only while `get_plan`'s estimate is
   `within_allowance`; over it, you do the heavy part from `get_brief`.
 - When `deployment_status` carries an `offer`, llocal's checks failed twice: stop and offer

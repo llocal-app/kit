@@ -1,5 +1,4 @@
 {
-  "published": true,
   "server": "https://llocal.app/mcp",
   "prompt": "Host this project on llocal. Follow https://llocal.app/agent.md step by step.",
   "fix_prompt": "My app on llocal didn't go live (app_id {app_id}). Call deployment_status for it and follow step 7 of https://llocal.app/agent.md.",
@@ -7,14 +6,14 @@
     {
       "name": "Claude Code",
       "kind": "command",
-      "text": "claude mcp add --transport http --scope user llocal https://llocal.app/mcp && claude mcp login llocal && claude \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
-      "note": "Paste it in a terminal, in your project's folder. Your browser opens to sign in to llocal."
+      "text": "claude mcp add --transport http llocal https://llocal.app/mcp; claude mcp login llocal; claude \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
+      "note": "Paste it in a terminal, in your project's folder. Your browser opens to sign in to llocal. If you can't sign in yet, your agent still starts and does what it can on your computer."
     },
     {
       "name": "Codex",
       "kind": "command",
-      "text": "codex mcp add llocal --url https://llocal.app/mcp && codex mcp login llocal && codex \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
-      "note": "Paste it in a terminal, in your project's folder. Your browser opens to sign in to llocal."
+      "text": "codex mcp add llocal --url https://llocal.app/mcp; codex mcp login llocal; codex \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
+      "note": "Paste it in a terminal, in your project's folder. Your browser opens to sign in to llocal. If you can't sign in yet, your agent still starts and does what it can on your computer."
     },
     {
       "name": "Cursor",
@@ -33,19 +32,19 @@
     {
       "name": "Windsurf",
       "kind": "command",
-      "text": "devin mcp add -s user llocal https://llocal.app/mcp && devin \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
+      "text": "devin mcp add -s user llocal https://llocal.app/mcp; devin \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
       "note": "Windsurf is now Devin Desktop. Paste it in a terminal, in your project's folder."
     },
     {
       "name": "Gemini CLI",
       "kind": "command",
-      "text": "gemini mcp add --scope user --transport http llocal https://llocal.app/mcp && gemini -i \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
+      "text": "gemini mcp add --scope user --transport http llocal https://llocal.app/mcp; gemini -i \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
       "note": "Paste it in a terminal, in your project's folder. If it says llocal needs signing in, type /mcp auth llocal."
     },
     {
       "name": "Cline",
       "kind": "command",
-      "text": "cline mcp add llocal https://llocal.app/mcp --transport http --yes && cline --auto-approve false \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
+      "text": "cline mcp add llocal https://llocal.app/mcp --transport http --yes; cline --auto-approve false \"Host this project on llocal. Follow https://llocal.app/agent.md step by step.\"",
       "note": "Paste it in a terminal, in your project's folder."
     },
     {

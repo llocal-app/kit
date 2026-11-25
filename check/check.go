@@ -58,18 +58,24 @@ type Survey struct {
 	Pages      []Route `json:"pages"`
 	Routes     []Route `json:"routes"`
 	DataStores []struct {
-		Host   string `json:"host"`
-		Tables []struct {
-			Name string `json:"name"`
-		} `json:"tables"`
+		Host   string  `json:"host"`
+		Tables []Table `json:"tables"`
 	} `json:"data_stores"`
 }
 
 // Route is a page or a server route. Path parameters are written {name}, like
-// /api/orders/{id}. Method defaults to GET.
+// /api/orders/{id}. Method defaults to GET. Removed says why a server route the person
+// agreed should go is gone.
 type Route struct {
-	Method string `json:"method"`
-	Path   string `json:"path"`
+	Method  string `json:"method"`
+	Path    string `json:"path"`
+	Removed string `json:"removed"`
+}
+
+// Table is a table of the old database, with the columns the survey read.
+type Table struct {
+	Name    string   `json:"name"`
+	Columns []string `json:"columns"`
 }
 
 func LoadSurvey(file string) (Survey, error) {
@@ -87,6 +93,7 @@ func LoadSurvey(file string) (Survey, error) {
 var (
 	startTimeout  = recipe.StartWait
 	pathParam     = regexp.MustCompile(`\{[^/]+\}`)
+	surveyFile    = regexp.MustCompile(`^survey([._-][^/]*)?\.json$`)
 	passwordField = regexp.MustCompile("(?i)\\btype\\s*[=:]\\s*[\"'`]?password\\b")
 	client        = &http.Client{
 		Transport:     &http.Transport{},
@@ -220,6 +227,7 @@ func (c *checker) serve(ctx context.Context) {
 		return
 	}
 	defer p.stop()
+	defer client.CloseIdleConnections()
 	if !c.add("start", c.healthy(ctx, p)) {
 		return
 	}
@@ -229,17 +237,22 @@ func (c *checker) serve(ctx context.Context) {
 		pages = []Route{{Path: "/"}}
 	}
 	if len(pages) > 0 {
-		c.add("pages", c.request(ctx, pages, http.StatusBadRequest))
+		c.add("pages", c.pages(ctx, pages))
 	}
 	if len(c.survey.Routes) > 0 {
-		c.add("routes", c.request(ctx, c.survey.Routes, http.StatusInternalServerError))
+		c.add("routes", c.routes(ctx))
+	}
+	db := filepath.Join(data, "app.db")
+	if c.rec.Shape == "standard" {
+		c.add("reads", c.reads(ctx, db, pages))
 	}
 	time.Sleep(time.Second)
 	c.report.IdleMemory = p.memory()
 	p.stop()
 	c.add("writes", c.writes(before))
-	if tables := c.tables(); len(tables) > 0 {
-		c.add("tables", c.missingTables(filepath.Join(data, "app.db"), tables))
+	tables := c.tables()
+	if len(tables) > 0 && c.add("tables", c.missingTables(db, tables)) && slices.ContainsFunc(tables, func(t Table) bool { return len(t.Columns) > 0 }) {
+		c.add("data-copy", c.dataCopy(ctx, db, tables))
 	}
 }
 
@@ -273,12 +286,12 @@ func (c *checker) healthy(ctx context.Context, p *process) error {
 	var unhealthy error
 	deadline := time.After(startTimeout)
 	for {
-		status, line, err := c.do(ctx, http.MethodGet, health, false)
-		if err == nil && status < 500 {
+		a, err := c.do(ctx, http.MethodGet, health, false)
+		if err == nil && a.status < 500 {
 			return nil
 		}
 		if err == nil {
-			unhealthy = fmt.Errorf("its health check GET %s answered %d: %s", health, status, line)
+			unhealthy = fmt.Errorf("its health check GET %s answered %d: %s", health, a.status, a.line)
 		}
 		select {
 		case <-p.done:
@@ -306,20 +319,95 @@ func answers(addr string) bool {
 	return err == nil
 }
 
-// request sends each request signed in, and fails on the first that answers limit or above.
-func (c *checker) request(ctx context.Context, routes []Route, limit int) error {
+// pages requests each page signed in, and fails on one that answers 400 or above.
+func (c *checker) pages(ctx context.Context, pages []Route) error {
 	var failed []string
-	for _, r := range routes {
+	for _, r := range pages {
+		p := pathParam.ReplaceAllString(r.Path, "1")
+		a, err := c.do(ctx, http.MethodGet, p, true)
+		switch {
+		case err != nil:
+			failed = append(failed, fmt.Sprintf("GET %s failed: %v", p, err))
+		case a.status >= http.StatusBadRequest:
+			failed = append(failed, fmt.Sprintf("GET %s answered %d: %s", p, a.status, a.line))
+		}
+	}
+	return joined(failed)
+}
+
+// loginRoute is a path of the old login's, which goes: llocal signs people in.
+var loginRoute = regexp.MustCompile(`(?i)(^|[/_-])(log-?in|log-?out|sign-?in|sign-?up|sign-?out|password|auth|oauth2?)([/_.-]|$)`)
+
+// routes sends each server route in the survey signed in, and fails on one that answers 500
+// or above, or that the app no longer has: a 405 to the route's own method, or the 404 the
+// kit gives where it has no route. The old login's routes and the routes marked removed may
+// be gone. Frameworks differ on a trailing slash, so the path's other form must be gone too.
+func (c *checker) routes(ctx context.Context) error {
+	var failed []string
+	gone := func(r Route, a answer) bool {
+		return a.status == http.StatusMethodNotAllowed && r.Method != "" || a.noRoute
+	}
+	for _, r := range c.survey.Routes {
 		method := cmp.Or(strings.ToUpper(r.Method), http.MethodGet)
 		p := pathParam.ReplaceAllString(r.Path, "1")
-		status, line, err := c.do(ctx, method, p, true)
+		a, err := c.do(ctx, method, p, true)
 		switch {
 		case err != nil:
 			failed = append(failed, fmt.Sprintf("%s %s failed: %v", method, p, err))
-		case status >= limit:
-			failed = append(failed, fmt.Sprintf("%s %s answered %d: %s", method, p, status, line))
+		case a.status >= http.StatusInternalServerError:
+			failed = append(failed, fmt.Sprintf("%s %s answered %d: %s", method, p, a.status, a.line))
+		case gone(r, a) && r.Removed == "" && !loginRoute.MatchString(r.Path):
+			other := strings.TrimSuffix(p, "/")
+			if other == p {
+				other += "/"
+			}
+			if b, err := c.do(ctx, method, other, true); err != nil || gone(r, b) {
+				failed = append(failed, fmt.Sprintf(`%s %s answered %d, as where the app has no route: the old app had it (the survey lists it), so keep it, or, if the person agreed it goes, set "removed" on it in survey.json to why`, method, p, a.status))
+			}
 		}
 	}
+	return joined(failed)
+}
+
+// reads sends each page and GET route again, now that the test person has been seen once,
+// and fails on one that writes to the database.
+func (c *checker) reads(ctx context.Context, file string, pages []Route) error {
+	db, err := sql.Open("sqlite", file+"?_pragma=busy_timeout(5000)")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	// data_version changes when another connection, here the app's, has written.
+	version := func() (int64, error) {
+		var v int64
+		err := conn.QueryRowContext(ctx, "PRAGMA data_version").Scan(&v)
+		return v, err
+	}
+	was, err := version()
+	if err != nil {
+		return err
+	}
+	for _, r := range slices.Concat(pages, c.survey.Routes) {
+		if r.Method != "" && !strings.EqualFold(r.Method, http.MethodGet) {
+			continue
+		}
+		p := pathParam.ReplaceAllString(r.Path, "1")
+		if _, err := c.do(ctx, http.MethodGet, p, true); err != nil {
+			continue
+		}
+		if now, err := version(); err != nil || now != was {
+			return cmp.Or(err, fmt.Errorf("GET %s wrote to the database: a request that only reads must not write, since every write waits for SQLite's one writer; record a person on their first visit only, not on every request", p))
+		}
+	}
+	return nil
+}
+
+func joined(failed []string) error {
 	switch len(failed) {
 	case 0:
 		return nil
@@ -329,14 +417,22 @@ func (c *checker) request(ctx context.Context, routes []Route, limit int) error 
 	return fmt.Errorf("%s (and %d more)", failed[0], len(failed)-1)
 }
 
-func (c *checker) do(ctx context.Context, method, p string, signed bool) (int, string, error) {
+// answer is what the app answered: its status, the first line of its body, and whether
+// the kit said it has no route there (X-LLocal-Route: none).
+type answer struct {
+	status  int
+	line    string
+	noRoute bool
+}
+
+func (c *checker) do(ctx context.Context, method, p string, signed bool) (answer, error) {
 	var body io.Reader
 	if method != http.MethodGet && method != http.MethodHead {
 		body = strings.NewReader("{}")
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.base+p, body)
 	if err != nil {
-		return 0, "", err
+		return answer{}, err
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -350,11 +446,11 @@ func (c *checker) do(ctx context.Context, method, p string, signed bool) (int, s
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, "", err
+		return answer{}, err
 	}
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	return resp.StatusCode, firstLine(b), nil
+	return answer{resp.StatusCode, firstLine(b), resp.Header.Get("X-LLocal-Route") == "none"}, nil
 }
 
 type stamp struct{ size, mod int64 }
@@ -393,17 +489,15 @@ func (c *checker) writes(before map[string]stamp) error {
 	return fmt.Errorf("it wrote %s beside its code: keep data under $LLOCAL_DATA (/data on llocal) and scratch files under /tmp", strings.Join(wrote[:min(3, len(wrote))], ", "))
 }
 
-func (c *checker) tables() []string {
-	var names []string
+func (c *checker) tables() []Table {
+	var tables []Table
 	for _, ds := range c.survey.DataStores {
-		for _, t := range ds.Tables {
-			names = append(names, t.Name)
-		}
+		tables = append(tables, ds.Tables...)
 	}
-	return names
+	return tables
 }
 
-func (c *checker) missingTables(file string, want []string) error {
+func (c *checker) missingTables(file string, want []Table) error {
 	if _, err := os.Stat(file); err != nil {
 		return errors.New("missing migration: there is no database at $LLOCAL_DATA/app.db; create the app's tables there with migrations (db/migrations on the kit)")
 	}
@@ -415,11 +509,11 @@ func (c *checker) missingTables(file string, want []string) error {
 	var missing []string
 	for _, t := range want {
 		var n int
-		if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ? COLLATE NOCASE`, t).Scan(&n); err != nil {
+		if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ? COLLATE NOCASE`, t.Name).Scan(&n); err != nil {
 			return err
 		}
 		if n == 0 {
-			missing = append(missing, strconv.Quote(t))
+			missing = append(missing, strconv.Quote(t.Name))
 		}
 	}
 	if len(missing) == 0 {
@@ -441,7 +535,7 @@ func (c *checker) hosts() []string {
 func (c *checker) oldDatabase(hosts []string) error {
 	return c.scan(".", func(p string) bool {
 		name := path.Base(p)
-		return !strings.HasSuffix(name, ".md") && !strings.HasPrefix(name, ".env") && name != "survey.json"
+		return !strings.HasSuffix(name, ".md") && !strings.HasPrefix(name, ".env") && !surveyFile.MatchString(name)
 	}, func(p string, data []byte) error {
 		for _, h := range hosts {
 			if bytes.Contains(data, []byte(h)) {

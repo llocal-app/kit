@@ -1,0 +1,89 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its Express server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own Express server.",
+      "5 server routes, like GET /api/orders, POST /api/orders, GET /api/orders/{id} and 2 more."
+    ],
+    "left": [
+      {
+        "kind": "server",
+        "text": "Its Express server (5 routes in 2 files, 1 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The Express server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ],
+    "dropped": [
+      "PORT"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "javascript"
+    ],
+    "frameworks": [
+      "express"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "express",
+        "files": 2,
+        "bytes": 792
+      }
+    ],
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/orders",
+        "file": "routes/orders.js"
+      },
+      {
+        "method": "POST",
+        "path": "/api/orders",
+        "file": "routes/orders.js"
+      },
+      {
+        "method": "GET",
+        "path": "/api/orders/{id}",
+        "file": "routes/orders.js"
+      },
+      {
+        "method": "GET",
+        "path": "/api/orders/{id}/lines",
+        "file": "routes/orders.js"
+      },
+      {
+        "method": "GET",
+        "path": "/api/status",
+        "file": "server.js"
+      }
+    ],
+    "data_stores": [],
+    "env": [
+      {
+        "name": "PORT",
+        "files": [
+          "server.js"
+        ],
+        "service": "platform"
+      }
+    ],
+    "packages": [
+      {
+        "name": "express",
+        "manifest": "package.json"
+      }
+    ]
+  }
+}

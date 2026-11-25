@@ -7,6 +7,48 @@ it who they are.
 
 The kit is what [llocal](https://llocal.app) hosts. Everything here also runs without llocal.
 
+## One project, before and after
+
+[fastapi/full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template)
+(MIT licence; not affiliated with llocal) is a React front end on a FastAPI server with
+Postgres. llocal measured it as shipped, and again with its back end rewritten on the kit
+by an AI agent (Claude Code, from llocal's public instructions) in about ten minutes: one
+Go server and SQLite, the same front end.
+
+| | as shipped (4 workers) | as shipped, 1 worker | rewritten on the kit |
+|---|---|---|---|
+| start to first good answer | 8,736 ms | 1,904 ms | 226 ms |
+| memory at rest (RSS) | 599.7 MB, and Postgres 89.7 MB | 120.6 MB, and Postgres 89.5 MB | 16.0 MB |
+| list of 50 items, 1 connection | 140 a second, median 6.7 ms | 139 a second, median 6.9 ms | 1,122 a second, median 0.8 ms |
+| list of 50 items, 10 connections | 152 a second, median 62.8 ms | 192 a second, median 49.5 ms | 1,613 a second, median 5.7 ms |
+| processor time per list request | 6.57 ms, and Postgres 0.90 ms | 5.21 ms, and Postgres 1.01 ms | 0.62 ms |
+| processor time per new item | 6.14 ms, and Postgres 1.24 ms | 4.63 ms, and Postgres 1.34 ms | 0.90 ms |
+
+Each app had one CPU and 512 MB of memory (and 512 MB of swap), in Docker on an Intel Mac.
+Each figure is the median of three runs. Before you read anything into it:
+
+- **The original's database had a processor of its own.** Postgres ran beside it on a
+  second CPU; the rewrite did everything on one.
+- **The rewrite was slower at the slow end for writes under load.** Creating items over 10
+  connections, the slowest 1% took over 636 ms (the original: 96 ms), and over 50, 1,839 ms
+  (601 ms); 8 of 64,913 creates failed with a server error, where the original had none. The
+  app didn't log why. The likely causes: the rewritten server wrote to the database on every
+  request, reads included, and the kit let writes poll SQLite's lock, which under load makes
+  a few wait past its limit and fail. Both are fixed since: the instructions and the checker
+  now forbid a read that writes, and the kit queues writes in order. This was not measured
+  again.
+- **The agent removed features and asked about them.** Besides the login screens llocal
+  replaces, it removed the admin screen for managing users and the superuser's view of
+  everyone's items, and asked the person to confirm. Its new users table also couldn't take
+  the old rows, which the checker now catches.
+- The original's four workers share memory that RSS counts in each (by PSS, 495.9 MB). The
+  original checks its own sign-in token against Postgres on each request; the rewrite checks
+  a signed header. llocal's own servers, ARM machines that run apps under gVisor, may give
+  other figures.
+
+That is one project, and nothing here is claimed for any other. The method, every figure
+and their ranges are in [BENCHMARK.md](BENCHMARK.md).
+
 ## The shape
 
 - **A static front end**, built to plain files (React, Vue, plain HTML, anything that builds

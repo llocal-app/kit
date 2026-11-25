@@ -4,8 +4,11 @@ This is how an app has to look to run on llocal, and how to get it there. It is 
 whoever does the work: the builder's own agent, llocal's agent, or a person. Follow it
 exactly. If the app cannot be made to fit, say which rule it breaks and why, and stop.
 
-The conversion needs a strong model (Claude Sonnet or better). A weaker one should stop
-here and say so.
+Rewriting a server and its data needs one of the largest models: Claude Opus or Sonnet,
+OpenAI's full-size GPT-5 or later, Gemini Pro, or one of their class. A small, fast model
+(Claude Haiku, a name with mini, nano, lite, flash or luna in it, or one its maker calls fast
+or for simpler tasks) tells the person which model it is and does only the safe parts: the
+survey, the plan, `llocal.json` for an app that needs nothing else, and the upload.
 
 ## The shape
 
@@ -40,12 +43,7 @@ upload it, and repeat.
 2. **Change** what is left, the biggest first: the server and its data, then the login,
    keys, timers, webhooks and files, and `llocal.json` last. Make the smallest change that
    does each, by the rules and the examples below.
-<!-- unpublished
-3. **Check** it: until the kit is public, llocal runs `llocal-check` itself when it builds
-   ("Check it", below).
--->
 3. **Check** it with `llocal-check` ("Check it", below), and fix every `FAIL` line.
-<!-- /unpublished -->
 4. **Upload** it, and llocal scans it again. Once an upload has a valid `llocal.json`,
    llocal builds it, runs the same checker and starts it.
 
@@ -82,6 +80,11 @@ an app's free allowance for llocal's AI.
 10. **Keep the app's API paths.** If the front end called `/api/orders`, the new server
     answers `/api/orders`, so the front end changes as little as possible. Server routes
     live under `/api/`. `/_llocal/` and `/healthz` are taken.
+11. **A request that only reads never writes.** Showing a page, a list or the person's own
+    profile changes nothing in the database. SQLite has one writer, so a write on every
+    request, like saving the person's row each time they call, makes every request wait in
+    line for it. Record a person once, on their first visit ("People and their old
+    accounts").
 
 ## llocal.json
 
@@ -173,8 +176,10 @@ func listOrders(app *kit.App) http.HandlerFunc {
 - `kit.New()` stops the app with a plain message if anything is missing or a migration fails.
 - `app` is a chi router: `app.Get`, `app.Post`, `app.Route`, `app.Use` (call `Use` before
   adding routes).
-- `app.DB` is the SQLite database (WAL, foreign keys on, writers wait their turn). Use `?`
-  placeholders.
+- `app.DB` is the SQLite database (WAL, foreign keys on). Writes take turns at its one
+  writer, in the order they came, and reads go on beside them. Use `?` placeholders.
+- A route that answers 500 or more is logged with the first line it wrote, so use
+  `http.Error(w, err.Error(), http.StatusInternalServerError)` for what fails.
 - `app.Files` is an `*os.Root` at `$LLOCAL_DATA/files`: names cannot escape it.
   `app.Files.Create(id)`, `app.Files.Open(id)`, `app.Files.Remove(id)`, and
   `http.ServeFileFS(w, r, app.Files.FS(), id)` to send one. Name files by id, not by the
@@ -185,13 +190,7 @@ func listOrders(app *kit.App) http.HandlerFunc {
 - `kit.JSON(w, status, v)` writes JSON.
 - `app.URL` is the app's public address, for links in emails.
 
-<!-- unpublished
-The module's `go.mod`, at the app's root, needs `require llocal.app/kit`. The kit isn't public
-yet, so it can't be downloaded and a server on it can't be built on the builder's computer;
-llocal's builds supply it, whatever version `go.mod` names.
--->
 The module's `go.mod`, at the app's root, needs `require llocal.app/kit` (`go get llocal.app/kit`).
-<!-- /unpublished -->
 
 ## Who is signed in
 
@@ -214,15 +213,30 @@ which page. The app never sees a password.
 
 ### People and their old accounts
 
-The app's old users table stays, as profile data. Add a `llocal_id` column. The first time
-someone signs in, find their old row by email and record their llocal id; after that, use
-only the llocal id.
+The app's old users table stays, as profile data, laid out so llocal's data copy can bring
+its rows across by column name:
+
+- **Its old name, its old columns and its old ids.** Other tables' rows point at those ids,
+  so a person keeps their rows. Leave out only the columns of the old login's secrets, like
+  a password hash: the copy skips a column the new table doesn't have.
+- **One new column, `llocal_id`, unique and allowed to be empty: never `NOT NULL`.** The old
+  rows arrive without it. Each gets it the first time its person signs in, matched by email.
+- **Any other new column has a default or may be empty**, or the copy can't fill the table.
+  `llocal-check` tries it.
 
 ```sql
--- db/migrations/002_llocal_id.sql
-ALTER TABLE users ADD COLUMN llocal_id TEXT;
-CREATE UNIQUE INDEX users_llocal_id ON users (llocal_id);
+-- db/migrations/001_init.sql
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,               -- the old ids, as they were
+  email TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  llocal_id TEXT UNIQUE              -- empty until the person's first sign-in
+);
 ```
+
+After the first sign-in, use only the llocal id. `userID` reads on every request and writes
+only on a person's first visit, by email to their old row or as a new row; it never updates
+the row on each request (rule 11):
 
 ```go
 // userID is the app's own id for the person signed in.
@@ -244,13 +258,44 @@ func userID(r *http.Request, db *sql.DB) (string, error) {
 }
 ```
 
+A new person's id is their llocal id here, since the ids are text. Where the old ids are
+numbers (`INTEGER PRIMARY KEY`), leave `id` out of the `INSERT` and SQLite gives the next one.
+
 ### Who may do what
 
-Rules the old database enforced (Supabase or Postgres row-level security, Firebase rules)
-become explicit checks in the server, on every route that needs them. Write each one down
-in plain words for the builder to confirm, like "people see only the jobs assigned to
-them" or "only the finance group can delete invoices"
-(`slices.Contains(kit.CurrentUser(r).Groups, "finance")`).
+Rules the old database enforced (Supabase or Postgres row-level security, Firebase rules),
+and the checks the old server made, become explicit checks in the server, on every route
+that needs them. Write each one down in plain words for the builder to confirm, like
+"people see only the jobs assigned to them" or "only the finance group can delete
+invoices".
+
+The app's own roles (an `is_superuser` or `is_admin` column, a `role` field, an admin area)
+become llocal groups. A company keeps its groups on llocal, and the app reads the person's
+from `kit.CurrentUser(r).Groups` (`X-LLocal-Groups` in a kept app):
+
+1. Ask the person which group has each role, like `admins` for the old superuser.
+2. Check the group in the server, on every route the role opened, where the role was
+   checked:
+
+   ```go
+   func isAdmin(r *http.Request) bool { return slices.Contains(kit.CurrentUser(r).Groups, "admins") }
+   ```
+
+   ```go
+   // Was the superuser's view: admins see every item, others their own.
+   if isAdmin(r) {
+   	rows, err = app.DB.QueryContext(r.Context(), `SELECT id, title FROM items`)
+   } else {
+   	rows, err = app.DB.QueryContext(r.Context(), `SELECT id, title FROM items WHERE owner_id = ?`, me)
+   }
+   ```
+
+3. Keep the role's screens and routes that are about the app's own data (every item, the
+   reports). Remove only those about logins: creating people, setting passwords, a list of
+   accounts to manage. llocal does those. A page only a group should open can also be locked
+   on llocal for that group.
+4. Leave the old role column in its table, for the data copy; the server stops reading it.
+5. Tell the person which group has each role now, and which screens went.
 
 ## SQLite in place of Postgres or MySQL
 
@@ -278,8 +323,10 @@ copy, then thrown away), or from data files in the upload (`.csv`, one per table
 SQLite file).
 
 - Every table and column keeps its name, and llocal copies rows by name, with the columns
-  both have. A table nothing uses any more (an old login's sessions) still keeps its
-  migration; the checker looks for every table the old database had.
+  both have. So a column the new table requires (`NOT NULL` with no default) must be one the
+  old table had; the checker's `data-copy` check tries it. A table nothing uses any more (an
+  old login's sessions) still keeps its migration; the checker looks for every table the old
+  database had.
 - Values arrive as SQLite takes them: timestamps as ISO 8601 UTC text, booleans as 0 or 1,
   JSON and arrays as JSON text, numbers as they were.
 - When a table or column changes its name or form, `db/import.sql` says how to fill it. llocal
@@ -350,7 +397,7 @@ app.Get("/api/notes", func(w http.ResponseWriter, r *http.Request) {
 
 ```sql
 -- db/migrations/001_init.sql
-CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL, name TEXT NOT NULL DEFAULT '');
+CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', llocal_id TEXT UNIQUE);
 CREATE TABLE notes (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users (id),
@@ -519,27 +566,21 @@ prints, in plain words, what is left before the app fits this shape (`left`: eac
 will change and what it needs. An agent may correct or fill the same file; its schema is
 `kit/survey/survey.schema.json`. The checker reads its pages, routes, database hosts and tables.
 
-<!-- unpublished
-Until the kit is public, `llocal-survey` can't be installed. llocal runs the same survey on
-every upload, and an agent connected to llocal gets its plan with `get_plan`, or llocal's plan
-for a `survey.json` it wrote with `survey_checklist`.
--->
 ```bash
 go run llocal.app/kit/cmd/llocal-survey@latest . > survey.json
 go run llocal.app/kit/cmd/llocal-survey@latest -plan .
 ```
-<!-- /unpublished -->
+
+A server route the person agreed should go stays in `survey.json`, with `"removed"` set to
+why, so `llocal-check` on the person's computer doesn't expect it. llocal's own check reads
+llocal's survey of the newest upload instead: once the converted app is uploaded, that lists
+only the routes it has.
 
 ## Check it
 
-<!-- unpublished
-Until the kit is public, `llocal-check` can't be installed: llocal runs it itself on every
-version of an app with a server, before it starts, and says what failed.
--->
 ```bash
 go run llocal.app/kit/cmd/llocal-check@latest -survey survey.json .
 ```
-<!-- /unpublished -->
 
 It runs the app the way llocal will and prints one line per check. Every `FAIL` line says
 what is wrong and what to do. llocal runs the same checker on every version of an app with a
@@ -556,9 +597,11 @@ allowance, llocal's AI offers to do the conversion itself.
 | `migrate` | the migrate command works on an empty database |
 | `start` | the app answers its health check on `$PORT` on all interfaces within a minute, as a real start must (`/healthz` for kit apps, `/` otherwise) |
 | `pages` | each page in the survey (or `/`) answers below 400 |
-| `routes` | each server route in the survey answers below 500 |
+| `routes` | each server route in the survey answers below 500 and is still there: not a 405 to its own method, nor the kit's 404 for an address it has no route for (a route's own 404 for a record, like `/api/orders/1`, is what an empty database answers). The old login's routes, and routes marked `removed`, may be gone |
+| `reads` | a standard app's pages and `GET` routes, requested a second time, write nothing to the database |
 | `writes` | the app wrote nothing inside its own folder, outside `persistent` and `node_modules` |
 | `tables` | every table in the survey exists in `$LLOCAL_DATA/app.db` |
+| `data-copy` | a row of each old table, with the columns the survey read, goes into the new table of its name by column name, the way llocal's data copy works. Tables `db/import.sql` fills are left to it |
 
 It also prints the app's memory at idle, how long it took to start, and its size on disk.
 Requests are sent signed in as a test person, the way llocal sends them: `GET` for pages, and
@@ -579,6 +622,8 @@ This app runs on llocal in its standard shape; keep it that way (llocal.app/agen
 - Schema changes are new numbered files in db/migrations. Never edit one that has run.
 - No login code: llocal signs people in. Who is signed in: kit.CurrentUser(r) on the
   server, /_llocal/me in the browser. Key data on the llocal id, never on email.
+- A request that only reads never writes to the database: record a person on their first
+  visit only.
 - New secrets and build settings go in llocal.json by name, never in the code.
 - No timers in the server: scheduled work is a route plus a "schedules" entry.
 - Before pushing, check it as llocal.app/agent.md says ("4. Check").

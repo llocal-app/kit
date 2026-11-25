@@ -1,0 +1,90 @@
+{
+  "plan": {
+    "shape": "standard",
+    "why": "Its FastAPI server is small, so llocal rewrites it in Go on llocal's kit. A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it.",
+    "found": [
+      "An app with its own FastAPI server.",
+      "6 server routes, like GET /api/v1/items, POST /api/v1/items, DELETE /api/v1/items/{item_id} and 3 more."
+    ],
+    "left": [
+      {
+        "kind": "server",
+        "text": "Its FastAPI server (6 routes in 7 files, 2 KB) is rewritten in Go on llocal's kit."
+      },
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "The FastAPI server is rewritten in Go on llocal's kit, answering at the same addresses.",
+        "detail": "A Go server starts in a moment and needs little memory, so the app is quick and can sleep when nobody is using it."
+      }
+    ]
+  },
+  "survey": {
+    "languages": [
+      "python"
+    ],
+    "frameworks": [
+      "fastapi"
+    ],
+    "servers": [
+      {
+        "dir": "backend",
+        "framework": "fastapi",
+        "files": 7,
+        "bytes": 1689
+      }
+    ],
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/v1/items",
+        "file": "backend/app/api/routes/items.py"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/items",
+        "file": "backend/app/api/routes/items.py"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/v1/items/{item_id}",
+        "file": "backend/app/api/routes/items.py"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/items/{item_id}",
+        "file": "backend/app/api/routes/items.py"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/login/access-token",
+        "file": "backend/app/api/routes/login.py"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/utils/health-check/",
+        "file": "backend/app/api/routes/utils.py"
+      }
+    ],
+    "data_stores": [],
+    "packages": [
+      {
+        "name": "fastapi",
+        "manifest": "backend/requirements.txt"
+      },
+      {
+        "name": "pydantic-settings",
+        "manifest": "backend/requirements.txt"
+      },
+      {
+        "name": "uvicorn",
+        "manifest": "backend/requirements.txt"
+      }
+    ]
+  }
+}

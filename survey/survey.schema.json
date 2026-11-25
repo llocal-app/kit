@@ -15,7 +15,8 @@
       "properties": {
         "method": { "enum": ["", "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"], "description": "Empty or left out means any method." },
         "path": { "type": "string", "pattern": "^/", "description": "Path parameters are written {name}, like /api/orders/{id}." },
-        "file": { "type": "string" }
+        "file": { "type": "string" },
+        "removed": { "type": "string", "description": "Set by whoever converts the app, for a server route the person agreed should go: why, in a sentence. The checker then doesn't expect it." }
       }
     }
   },

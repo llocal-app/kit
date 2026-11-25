@@ -19,16 +19,28 @@ llocal's agent won't start, since paying for more isn't available yet: you do th
 from llocal's brief (`get_brief`), and once what is left is within the allowance, llocal's
 agent can finish it if the person chooses. Tell the person this before you start.
 
+Everything up to the upload can be done before the person can sign in to llocal: see "Not
+signed in yet".
+
 ## Before you start
 
-- **This needs a strong model.** Reworking a server and its database onto a new shape needs
-  Claude Sonnet or better, or a model of that class. If you are a smaller or faster model,
-  stop and tell the person so. If the plan is within the allowance, offer the other way:
-  `create_app`, `create_upload`, then `request_convert`.
-- **You need llocal's tools** (`whoami`, `create_app`, `create_upload` and the rest). If you
-  don't have them, the person adds llocal to their AI tool with the line for it at
-  https://llocal.app/agent/connect.json. When llocal asks them to sign in, they finish it in
-  their browser.
+- **Say which model you are, before you change any code.** Moving a server and its data onto
+  the kit is long, exact work, and it needs one of the largest models: Claude Opus or Sonnet,
+  OpenAI's full-size GPT-5 or later, Gemini Pro, or one of their class. Small, fast models
+  get it wrong: Claude Haiku, any model whose name has mini, nano, lite, flash or luna in it,
+  and any its maker calls fast, small or for simpler tasks. Your instructions or your tool's
+  settings name the model you are. Tell the person that name and whether it is one of these;
+  if you can't tell, ask them which model their tool is set to. If it is one of these, don't
+  rewrite the server or the data. Do the parts that are safe: the scan and the plan (steps 1
+  and 2), `llocal.json` for an app that needs nothing else (a static site, or one already on
+  one SQLite file), and the upload. Then offer the person llocal's own agent
+  (`request_convert`, free while the work is within its allowance) or a larger model in
+  their AI tool. llocal's `get_brief` asks for your model's name and refuses the brief to a
+  small one.
+- **llocal's tools** (`whoami`, `create_app`, `create_upload` and the rest) come from adding
+  llocal to the person's AI tool, with the line for it at
+  https://llocal.app/agent/connect.json, and signing in, in their browser. If you don't have
+  them, don't stop: follow "Not signed in yet".
 - **Keep secrets out of everything you write.** Never put a key's value in a file, a commit,
   `survey.json`, the archive or a message. The person gives it to you; you give it to
   `set_secret`, and llocal never shows it again.
@@ -38,16 +50,35 @@ agent can finish it if the person chooses. Tell the person this before you start
 - Call `whoami` first: who you act for, their companies and apps, and what this connection may
   do (`apps:read`, `apps:deploy`, `apps:admin`).
 
+## Not signed in yet
+
+When llocal's tools aren't there, or the person can't sign in yet (signing up needs a
+company address; a personal one, like a Gmail address, goes on a waitlist), the work still
+goes ahead on this computer with llocal's public kit. It is the same work: you are allowed to do it, and
+it is what the person asked for. You need Go (macOS, Linux or WSL).
+
+1. **Scan:** `go run llocal.app/kit/cmd/llocal-survey@latest . > survey.json`, then
+   `go run llocal.app/kit/cmd/llocal-survey@latest -plan .` for the plan in plain words.
+   Without Go, read the code and write `survey.json` by its schema
+   (https://llocal.app/survey.schema.json), and work out what is left from "llocal's
+   standard shape".
+2. **Plan with the person** as step 2 says, but without `create_app`: show the plan, ask for
+   the app's name, who should open it, and which outside services stay. Their keys go to
+   llocal later, with `set_secret`; don't ask for them now. Change nothing until they say go.
+3. **Change** (step 3) and **check** (step 4) exactly as below, and commit.
+4. **Hand back:** tell the person what you changed, what the checker said, and what is left:
+   add llocal to their AI tool (the line for it at https://llocal.app/agent/connect.json),
+   sign in, and ask you to carry on. Then you start at `whoami`, `create_app` and the upload
+   (step 5), and go on from there. Once they're connected, llocal's plan also says whether
+   llocal's own agent would have done it for free.
+
 ## 1. Scan
 
 Call `survey_checklist`. It says what to record about the project and gives the schema of
 `survey.json`. Read the code (don't run it) and write `survey.json` at the project's root,
-describing the project as it is now.
-<!-- unpublished
--->
-Where Go is installed, `go run llocal.app/kit/cmd/llocal-survey@latest . > survey.json`
-writes a first draft by rules; check and complete it.
-<!-- /unpublished -->
+describing the project as it is now. Where Go is installed,
+`go run llocal.app/kit/cmd/llocal-survey@latest . > survey.json` writes a first draft by
+rules; check and complete it.
 
 Call `survey_checklist` again with your survey. It returns llocal's plan in plain words: what
 was found, what is left before the app fits (`left`, empty when it fits), what will change,
@@ -64,7 +95,9 @@ chooses one. Then ask for:
   letters, digits and single hyphens;
 - the keys of the outside services that stay (payments, AI, mail);
 - who should open it: chosen people, groups, or just them. Everyone at the company is their
-  click on the app's page, later.
+  click on the app's page, later;
+- for each role the app has of its own (an admin, a superuser, staff), the llocal group that
+  should have it ("Who may do what" in "llocal's standard shape").
 
 Change nothing until they say go. Then call `create_app` with the name (and the company, if
 `whoami` shows more than one) and upload the project as it is (step 5): llocal scans the
@@ -74,41 +107,38 @@ tied to a thing left and with how to tell it is done.
 ## 3. Change
 
 In a new branch of their working copy (`git switch -c llocal`), make the changes in
-`get_brief`'s order, each the smallest change that does it, following "llocal's standard
-shape" below. In short: a static site, or an app already on one SQLite file, needs only
-`llocal.json`; an app whose pages talk straight to Supabase or Firebase gets a Go server on
-the kit with a route for each thing the front end does; an app with its own server on
-Postgres or MySQL moves its data to SQLite, and its server is ported to Go on the kit when it
-is small, ordinary create, read, update and delete, or kept (`"shape": "kept"`) otherwise.
-Remove the app's own login. Turn each rule the old database enforced (row-level security,
-Firebase rules) into a check in the server, and list them in plain words for the person to
-confirm.
+`get_brief`'s order (without llocal's tools, what the plan has left, the biggest first), each
+the smallest change that does it, following "llocal's standard shape" below. In short: a
+static site, or an app already on one SQLite file, needs only `llocal.json`; an app whose
+pages talk straight to Supabase or Firebase gets a Go server on the kit with a route for each
+thing the front end does; an app with its own server on Postgres or MySQL moves its data to
+SQLite, and its server is ported to Go on the kit when it is small, ordinary create, read,
+update and delete, or kept (`"shape": "kept"`) otherwise. Remove the app's own login.
 
-<!-- unpublished
-llocal's kit isn't public yet, so it can't be downloaded here, and a Go server on it can't be
-built or run on this computer. Make every other change. For the server, either keep the app's
-own server with its data moved to SQLite (`"shape": "kept"`, as the Express, Flask and
-Next.js examples below show), or leave the Go server, and `llocal.json`, to llocal's agent,
-which has the kit: once what is left is within the free allowance, it can finish the app.
--->
+Turn each rule the old database enforced (row-level security, Firebase rules) and each the
+old server checked into a check in the server, and list them in plain words for the person
+to confirm. Keep every route the old server had: the checker fails one that is gone. The
+app's own roles (admin, superuser, staff) become llocal groups, and its screens for managing
+people (sign-up, passwords, an admin's list of accounts) go, since llocal does that: tell the
+person which screens went and which group now decides what ("Who may do what"). A route the
+person agreed should go gets `"removed": "<why>"` in `survey.json`.
+
 A Go server starts from the kit's starter app: `go mod download -json llocal.app/kit@latest`
 prints the kit's folder as `Dir`; copy `Dir/starter` and make the copy writable
 (`chmod -R u+w`). It is part of the kit, with no `go.mod` of its own: in it, run
 `go mod init <the app's name>` and `go get llocal.app/kit@latest`, so its `go.mod` requires
 `llocal.app/kit`.
-<!-- /unpublished -->
 
 Add the "Hosting (llocal)" section from "Keep it in shape", below, to the project's
 `CLAUDE.md` or `AGENTS.md` (for Cursor, save https://llocal.app/agent/cursor/llocal.mdc as
 `.cursor/rules/llocal.mdc`), so later work keeps the shape. Commit.
 
+When your tool can't write to `.git` (Codex's default sandbox is one), make the changes all
+the same, then ask the person to run `git switch -c llocal` and commit what you changed, or
+to let you. The upload sends only what is committed.
+
 ## 4. Check
 
-<!-- unpublished
-llocal's checker isn't public yet, so it can't run on this computer. llocal runs it on every
-version it builds, once the upload has a valid `llocal.json`, and a version that fails never
-starts: step 7 says what to do then.
--->
 On macOS, Linux or WSL, with Go installed:
 
 ```bash
@@ -117,7 +147,6 @@ go run llocal.app/kit/cmd/llocal-check@latest -survey survey.json .
 
 Fix every `FAIL` line and run it again. On Windows without WSL, or without Go, skip this step:
 llocal runs the same checks when it builds, and their answer is the one that counts.
-<!-- /unpublished -->
 
 ## 5. Upload
 

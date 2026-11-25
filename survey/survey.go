@@ -65,11 +65,13 @@ type Server struct {
 }
 
 // Route is a page or a server route. Path parameters are written {name}. An empty method
-// means any.
+// means any. Removed is never set by the survey: whoever converts the app sets it, saying
+// why, on a server route the person agreed should go.
 type Route struct {
-	Method string `json:"method,omitempty"`
-	Path   string `json:"path"`
-	File   string `json:"file,omitempty"`
+	Method  string `json:"method,omitempty"`
+	Path    string `json:"path"`
+	File    string `json:"file,omitempty"`
+	Removed string `json:"removed,omitempty"`
 }
 
 // Function is server code called by name rather than by path: supabase-edge,

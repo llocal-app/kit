@@ -75,6 +75,20 @@ misread, in a small project of its own:
 - `python-node`: a kept Python server whose pages are built with Node. llocal's bases are `go`
   (Go and Node), `node` and `python`, so none builds both.
 
+Checked 2026-11-25, after a FastAPI app's routes were listed without the prefix its routers
+are added under. Each fixture below has routes under routers added with prefixes, and each
+route's path must carry all of them:
+
+- `fastapi-prefix`: code under `backend/` imported as `app.x.y`; `app.include_router(api_router,
+  prefix=settings.API_V1_STR)`, a constant set in the settings class; `api_router` adds
+  routers with prefixes of their own, one through a relative import and an f-string prefix.
+- `flask-prefix`: blueprints imported by name and by module, registered with a constant
+  prefix and a literal one, which replaces the blueprint's own.
+- `express-prefix`: a router in the same file added under `/api`, a router from another file
+  added to it, and a router added to that one under a path with a parameter.
+- `go-prefix`: chi `Route` blocks, one inside another, and a router added with `Mount`; a
+  brace in a comment and in a string doesn't end a block.
+
 ## Sources
 
 - Lovable: docs.lovable.dev/changelog (2025-10-06 Cloud; 2026-05-18 TanStack Start default from

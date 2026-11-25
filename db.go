@@ -3,31 +3,200 @@ package kit
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"time"
 
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
 )
+
+// busyTimeout is how long a write waits for its turn before it fails.
+var busyTimeout = 5 * time.Second
 
 func openDB(path string) (*sql.DB, error) {
 	q := url.Values{}
 	q.Add("_pragma", "journal_mode(WAL)")
 	q.Add("_pragma", "foreign_keys(1)")
-	q.Add("_pragma", "busy_timeout(5000)")
+	q.Add("_pragma", fmt.Sprintf("busy_timeout(%d)", busyTimeout.Milliseconds()))
 	// Write transactions take the lock at BEGIN, so concurrent writers wait out busy_timeout
 	// instead of failing with SQLITE_BUSY when a read lock can't be upgraded.
 	q.Add("_txlock", "immediate")
-	db, err := sql.Open("sqlite", path+"?"+q.Encode())
-	if err != nil {
-		return nil, err
-	}
+	db := sql.OpenDB(connector{path + "?" + q.Encode(), make(writer, 1)})
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
 	return db, nil
+}
+
+// writer lets one write at a time reach SQLite, in the order they came. SQLite allows one
+// writer and makes the others poll for the lock, so under load an unlucky writer waits out
+// busy_timeout and fails; queued here, every writer waits only its turn, and reads go on
+// beside them.
+type writer chan struct{}
+
+func (w writer) lock(ctx context.Context) error {
+	select {
+	case w <- struct{}{}:
+		return nil
+	default:
+	}
+	t := time.NewTimer(busyTimeout)
+	defer t.Stop()
+	select {
+	case w <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return fmt.Errorf("database is locked: another write held it for %s", busyTimeout)
+	}
+}
+
+func (w writer) unlock() { <-w }
+
+type connector struct {
+	dsn string
+	w   writer
+}
+
+func (c connector) Connect(context.Context) (driver.Conn, error) {
+	conn, err := c.Driver().Open(c.dsn)
+	if err != nil {
+		return nil, err
+	}
+	return &liteConn{conn.(sqliteConn), c.w, false}, nil
+}
+
+func (connector) Driver() driver.Driver { return &sqlite.Driver{} }
+
+type sqliteConn interface {
+	driver.Conn
+	driver.ConnBeginTx
+	driver.ConnPrepareContext
+	driver.ExecerContext
+	driver.QueryerContext
+	driver.Pinger
+	driver.SessionResetter
+	driver.Validator
+}
+
+// liteConn takes the writer's turn for each transaction, each statement run outside one,
+// and each query that writes (RETURNING) until its rows are closed, prepared or not.
+type liteConn struct {
+	sqliteConn
+	w  writer
+	tx bool
+}
+
+func (c *liteConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	if err := c.w.lock(ctx); err != nil {
+		return nil, err
+	}
+	t, err := c.sqliteConn.BeginTx(ctx, opts)
+	if err != nil {
+		c.w.unlock()
+		return nil, err
+	}
+	c.tx = true
+	return liteTx{t, c}, nil
+}
+
+func (c *liteConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	return c.exec(ctx, func() (driver.Result, error) { return c.sqliteConn.ExecContext(ctx, query, args) })
+}
+
+func (c *liteConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	return c.query(ctx, returning.MatchString(query), func() (driver.Rows, error) { return c.sqliteConn.QueryContext(ctx, query, args) })
+}
+
+func (c *liteConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	s, err := c.sqliteConn.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return liteStmt{s.(sqliteStmt), c, returning.MatchString(query)}, nil
+}
+
+func (c *liteConn) exec(ctx context.Context, run func() (driver.Result, error)) (driver.Result, error) {
+	if !c.tx {
+		if err := c.w.lock(ctx); err != nil {
+			return nil, err
+		}
+		defer c.w.unlock()
+	}
+	return run()
+}
+
+var returning = regexp.MustCompile(`(?i)\breturning\b`)
+
+func (c *liteConn) query(ctx context.Context, writes bool, run func() (driver.Rows, error)) (driver.Rows, error) {
+	if c.tx || !writes {
+		return run()
+	}
+	if err := c.w.lock(ctx); err != nil {
+		return nil, err
+	}
+	rows, err := run()
+	if err != nil {
+		c.w.unlock()
+		return nil, err
+	}
+	return liteRows{rows, c.w}, nil
+}
+
+type sqliteStmt interface {
+	driver.Stmt
+	driver.StmtExecContext
+	driver.StmtQueryContext
+}
+
+type liteStmt struct {
+	sqliteStmt
+	c      *liteConn
+	writes bool
+}
+
+func (s liteStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	return s.c.exec(ctx, func() (driver.Result, error) { return s.sqliteStmt.ExecContext(ctx, args) })
+}
+
+func (s liteStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	return s.c.query(ctx, s.writes, func() (driver.Rows, error) { return s.sqliteStmt.QueryContext(ctx, args) })
+}
+
+type liteTx struct {
+	driver.Tx
+	c *liteConn
+}
+
+func (t liteTx) Commit() error {
+	defer t.end()
+	return t.Tx.Commit()
+}
+
+func (t liteTx) Rollback() error {
+	defer t.end()
+	return t.Tx.Rollback()
+}
+
+func (t liteTx) end() {
+	t.c.tx = false
+	t.c.w.unlock()
+}
+
+type liteRows struct {
+	driver.Rows
+	w writer
+}
+
+func (r liteRows) Close() error {
+	defer r.w.unlock()
+	return r.Rows.Close()
 }
 
 // migrate applies each .sql file in dir, in name order, once.

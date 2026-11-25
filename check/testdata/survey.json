@@ -5,6 +5,6 @@
     { "method": "POST", "path": "/api/notes" }
   ],
   "data_stores": [
-    { "kind": "postgres", "host": "abcd.supabase.co", "tables": [{ "name": "notes", "columns": ["id", "body"] }] }
+    { "kind": "postgres", "host": "abcd.supabase.co", "tables": [{ "name": "notes", "columns": ["id", "body", "user_id", "by_name", "created_at"] }] }
   ]
 }

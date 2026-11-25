@@ -323,39 +323,34 @@ var (
 	handlerKey   = compile(`\b(GET|POST|PUT|PATCH|DELETE)\s*:`)
 	routerPage   = compile(`<Route\b[^>]*?\bpath=["']([^"']+)["']|\bpath\s*:\s*["'](/[^"']*)["']`)
 	expressFile  = compile(`\b(express|fastify|hono|koa)\b|\bRouter\(\)`)
-	expressRoute = compile("\\b(?:app|router|server|api|routes|\\w+Router)\\s*\\.\\s*(get|post|put|patch|delete|all|route)\\s*\\(\\s*[\"'`](/[^\"'`]*)[\"'`]")
+	expressRoute = compile("\\b(app|router|server|api|routes|\\w+Router)\\s*\\.\\s*(get|post|put|patch|delete|all|route)\\s*\\(\\s*[\"'`](/[^\"'`]*)[\"'`]")
 	chainCall    = compile(`^\s*(?://[^\n]*\s*)*\.\s*(get|post|put|patch|delete|all)\s*\(`)
 	expressParam = compile(`:(\w+)(?:\([^)]*\))?\??`)
 	pyRoute      = compile(`@(\w+)\.(route|get|post|put|patch|delete|api_route)\(\s*f?["'](/[^"']*)["']([^)]*)\)`)
 	pyRouter     = compile(`(\w+)\s*=\s*(?:APIRouter|Blueprint)\(([^)]*)\)`)
-	pyPrefix     = compile(`\b(?:url_)?prefix\s*=\s*["']([^"']+)["']`)
+	pyPrefix     = compile(`\b(?:url_)?prefix\s*=\s*(?:(f?)["']([^"']*)["']|([A-Za-z_][\w.]*))`)
 	pyMethods    = compile(`methods\s*=\s*[\[(]([^\])]*)`)
 	quotedWord   = compile(`["'](\w+)["']`)
 	flaskParam   = compile(`<(?:\w+:)?(\w+)>`)
 	typedParam   = compile(`\{(\w+):[^}]*\}`)
-	goRoute      = compile(`\.(Get|Post|Put|Patch|Delete|GET|POST|PUT|PATCH|DELETE|HandleFunc|Handle)\(\s*"(?:(GET|POST|PUT|PATCH|DELETE) +)?(/[^"]*)"`)
+	goRoute      = compile(`(\w*)\.(Get|Post|Put|Patch|Delete|GET|POST|PUT|PATCH|DELETE|HandleFunc|Handle)\(\s*"(?:(GET|POST|PUT|PATCH|DELETE) +)?(/[^"]*)"`)
+	goGroup      = compile(`(\w+)\s*:?=\s*(\w+)\.(?:Group|PathPrefix)\(\s*"(/[^"]*)"`)
+	goMount      = compile(`(\w+)\.Mount\(\s*"(/[^"]*)"\s*,\s*(\w+)\s*\)`)
+	goBlock      = compile(`(\w*)\.Route\(\s*"(/[^"]*)"\s*,\s*func\s*\(\s*\w+\s+[\w.*]+\s*\)\s*\{`)
 )
 
 func (p *project) routes() {
 	next := p.s.fw("nextjs")
-	mounted, pyMounted := p.mounts(), p.pyMounts()
+	mounted, pyMounted := p.mounts(), p.pyPrefixes()
 	for _, n := range p.code {
 		t := p.text[n]
 		switch {
 		case next && nextFile.MatchString(n):
 			p.nextRoute(n, t)
 		case isGo(n):
-			for _, m := range goRoute.FindAllStringSubmatch(t, -1) {
-				method := m[2]
-				if method == "" && !strings.HasPrefix(m[1], "Handle") {
-					method = strings.ToUpper(m[1])
-				}
-				if pth, ok := colonPath(strings.ReplaceAll(m[3], "...}", "}")); ok {
-					p.route(n, method, pth)
-				}
-			}
+			p.goRoutes(n, t)
 		case isPython(n):
-			p.pyRoutes(n, t, pyMounted[n])
+			p.pyRoutes(n, t, pyMounted)
 		case fileRoute.MatchString(t):
 			p.fileRoutes(n, t)
 		case p.browser[n] && (strings.Contains(t, "react-router") || strings.Contains(t, "wouter")):
@@ -367,16 +362,16 @@ func (p *project) routes() {
 		case !p.browser[n] && expressFile.MatchString(t):
 			locs := expressRoute.FindAllStringSubmatchIndex(t, -1)
 			for k, loc := range locs {
-				methods := []string{sub(t, loc, 1)}
+				methods := []string{sub(t, loc, 2)}
 				if methods[0] == "route" {
 					// Read up to the next route, so an unclosed call cannot make the scan quadratic.
 					end := len(t)
 					if k+1 < len(locs) {
 						end = locs[k+1][0]
 					}
-					methods = chained(t[loc[3]+strings.IndexByte(t[loc[3]:], '(') : end])
+					methods = chained(t[loc[5]+strings.IndexByte(t[loc[5]:], '(') : end])
 				}
-				if pth, ok := colonPath(cmp.Or(strings.TrimSuffix(mounted[n]+sub(t, loc, 2), "/"), "/")); ok {
+				if pth, ok := colonPath(cmp.Or(strings.TrimSuffix(mounted.of(ref{n, sub(t, loc, 1)})+sub(t, loc, 3), "/"), "/")); ok {
 					for _, method := range methods {
 						if method == "all" {
 							method = ""
@@ -404,15 +399,79 @@ func (p *project) routes() {
 	}
 }
 
+// ref is a router: a variable in a file, or, with no name, the router a file exports.
+type ref struct{ file, name string }
+
+// mountPoint is where a router is added: to another router, under a prefix. A Flask
+// blueprint registered with a prefix loses the one it was made with (replace).
+type mountPoint struct {
+	by      ref
+	prefix  string
+	replace bool
+}
+
+// prefixes are routers' own prefixes, APIRouter(prefix="/items"), where each is added, and
+// each router's whole prefix once worked out.
+type prefixes struct {
+	own   map[ref]string
+	under map[ref]mountPoint
+	memo  map[ref]string
+}
+
+func newPrefixes() prefixes {
+	return prefixes{own: map[ref]string{}, under: map[ref]mountPoint{}, memo: map[ref]string{}}
+}
+
+// maxPrefix is the longest prefix kept for a router, so a hostile file's routes stay short.
+const maxPrefix = 1 << 10
+
+// of is router r's whole prefix: its own, after those of the routers it is added to, in
+// turn. A router not added itself is under whatever adds its file's export. A loop of
+// routers stops at maxDepth.
+func (x prefixes) of(r ref) string {
+	p, ok := x.memo[r]
+	if !ok {
+		p = x.walk(r, 0)
+		x.memo[r] = p
+	}
+	return p
+}
+
+func (x prefixes) walk(r ref, depth int) string {
+	m, ok := x.under[r]
+	if !ok {
+		m, ok = x.under[ref{r.file, ""}]
+	}
+	own := x.own[r]
+	if !ok || depth == maxDepth {
+		return cut(own)
+	}
+	if m.replace {
+		own = ""
+	}
+	return cut(x.walk(m.by, depth+1) + m.prefix + own)
+}
+
+func cut(prefix string) string { return prefix[:min(len(prefix), maxPrefix)] }
+
+// join is a route's path under its router's prefix; the router's root is the prefix itself.
+func join(prefix, pth string) string {
+	if prefix != "" && pth == "/" {
+		return prefix
+	}
+	return prefix + pth
+}
+
 var (
-	mount      = compile(`\.use\(\s*["'](/[^"']*)["']\s*,\s*(?:[\w.]+(?:\([^()]*\))?\s*,\s*)*(\w+)\s*\)`)
+	mount      = compile(`\b(\w+)\s*\.use\(\s*["'](/[^"']*)["']\s*,\s*(?:[\w.]+(?:\([^()]*\))?\s*,\s*)*(\w+)\s*\)`)
 	importName = compile(`(?:\bimport\s+(\w+)\s+from|\b(?:const|let|var)\s+(\w+)\s*=\s*require\()\s*["'](\.[^"']*)["']`)
 )
 
-// mounts finds Express routers mounted under a prefix, app.use("/api", router), where the
-// router comes from another of the app's files, and returns that file's prefix.
-func (p *project) mounts() map[string]string {
-	prefix := map[string]string{}
+// mounts finds Express routers added under a prefix, app.use("/api", router), whether the
+// router is the export of another of the app's files or a variable in the same one, and
+// routers added to routers.
+func (p *project) mounts() prefixes {
+	x := newPrefixes()
 	for _, n := range p.code {
 		if p.browser[n] || !expressFile.MatchString(p.text[n]) {
 			continue
@@ -422,18 +481,20 @@ func (p *project) mounts() map[string]string {
 			from[m[1]+m[2]] = path.Join(path.Dir(n), m[3])
 		}
 		for _, m := range mount.FindAllStringSubmatch(p.text[n], -1) {
-			file := from[m[2]]
-			if file == "" {
+			at := mountPoint{by: ref{n, m[1]}, prefix: strings.TrimSuffix(m[2], "/")}
+			file, imported := from[m[3]]
+			if !imported {
+				x.under[ref{n, m[3]}] = at
 				continue
 			}
 			for _, f := range []string{"", ".ts", ".js", ".mjs", "/index.ts", "/index.js"} {
 				if _, ok := p.text[file+f]; ok {
-					prefix[file+f] = strings.TrimSuffix(m[1], "/")
+					x.under[ref{file + f, ""}] = at
 				}
 			}
 		}
 	}
-	return prefix
+	return x
 }
 
 // colonPath writes a route's :name parameters as {name}, and says false for a path with a
@@ -458,38 +519,199 @@ func chained(s string) []string {
 }
 
 var (
-	pyMount = compile(`\.(?:include_router|register_blueprint)\(\s*([\w.]+)\s*,[^)]*?\b(?:url_)?prefix\s*=\s*["']([^"']+)["']`)
-	pyFrom  = compile(`(?m)^[ \t]*from[ \t]+([\w.]+)[ \t]+import[ \t]+([\w, \t]+)`)
+	pyMount       = compile(`(\w+)\s*\.\s*(include_router|register_blueprint)\(\s*([\w.]+)`)
+	pyFrom        = compile(`(?m)^[ \t]*from[ \t]+([\w.]+)[ \t]+import[ \t]+(\([\w,\s]*\)|[^\n#]+)`)
+	pyConst       = compile(`(?m)^[ \t]*(\w+)[ \t]*(?::[^=\n]*)?=[ \t]*["'](/[^"'\n]*)["']`)
+	pyPlaceholder = compile(`\{([\w.]+)\}`)
 )
 
-// pyMounts finds FastAPI routers and Flask blueprints given a prefix where they are added,
-// app.include_router(items.router, prefix="/api"), and returns the prefix of the file that
-// defines them.
-func (p *project) pyMounts() map[string]string {
-	prefix := map[string]string{}
-	for _, n := range p.files(isPython) {
-		from := map[string]string{}
-		for _, m := range pyFrom.FindAllStringSubmatch(p.text[n], -1) {
-			for _, name := range strings.Split(m[2], ",") {
-				from[strings.TrimSpace(name)] = strings.ReplaceAll(m[1], ".", "/")
+// pyPrefixes finds the prefix of each FastAPI router and Flask blueprint: its own, under
+// those it is added with along the chain, app.include_router(api_router,
+// prefix=settings.API_V1_STR) then api_router.include_router(items.router). A prefix may be
+// a constant set in any of the project's Python files, or an f-string of them.
+func (p *project) pyPrefixes() prefixes {
+	x := newPrefixes()
+	files := p.files(isPython)
+	consts := map[string]string{}
+	// modules is each Python file by every end of its path, since imports start from a
+	// folder inside the project; a file's whole path is always itself.
+	modules := map[string]string{}
+	for _, n := range files {
+		for _, m := range pyConst.FindAllStringSubmatch(p.text[n], -1) {
+			if _, ok := consts[m[1]]; !ok {
+				consts[m[1]] = m[2]
 			}
 		}
-		for _, m := range pyMount.FindAllStringSubmatch(p.text[n], -1) {
-			name, _, _ := strings.Cut(m[1], ".")
-			mod, ok := from[name]
-			if !ok {
-				continue
-			}
-			for _, base := range []string{path.Dir(n), "."} {
-				for _, f := range []string{path.Join(base, mod, name+".py"), path.Join(base, mod+".py")} {
-					if _, read := p.text[f]; read && prefix[f] == "" {
-						prefix[f] = strings.TrimSuffix(m[2], "/")
-					}
-				}
+		modules[n] = n
+		for tail := n; strings.Contains(tail, "/"); {
+			_, tail, _ = strings.Cut(tail, "/")
+			if _, ok := modules[tail]; !ok {
+				modules[tail] = n
 			}
 		}
 	}
-	return prefix
+	constant := func(name string) string { return consts[name[strings.LastIndexByte(name, '.')+1:]] }
+	prefix := func(args string) (string, bool) {
+		m := pyPrefix.FindStringSubmatch(args)
+		switch {
+		case m == nil:
+			return "", false
+		case m[3] != "":
+			m[2] = constant(m[3])
+		case m[1] != "":
+			m[2] = pyPlaceholder.ReplaceAllStringFunc(m[2], func(s string) string { return constant(s[1 : len(s)-1]) })
+		}
+		return strings.TrimSuffix(m[2], "/"), true
+	}
+	for _, n := range files {
+		t := p.text[n]
+		for _, m := range pyRouter.FindAllStringSubmatch(t, -1) {
+			x.own[ref{n, m[1]}], _ = prefix(m[2])
+		}
+		from := pyImports(n, t)
+		locs := pyMount.FindAllStringSubmatchIndex(t, -1)
+		for k, loc := range locs {
+			// Read up to the next call, so an unclosed one cannot make the scan quadratic.
+			end := len(t)
+			if k+1 < len(locs) {
+				end = locs[k+1][0]
+			}
+			call := t[loc[0]:end]
+			at, given := prefix(balanced(call[strings.IndexByte(call, '('):], '(', ')'))
+			if r := pyRef(n, sub(t, loc, 3), from, modules); r.file != "" {
+				x.under[r] = mountPoint{ref{n, sub(t, loc, 1)}, at, given && sub(t, loc, 2) == "register_blueprint"}
+			}
+		}
+	}
+	return x
+}
+
+// pyImports is where each name a Python file imports comes from: the module's path in
+// slashes (a relative one from the file's folder), and the name there.
+func pyImports(n, t string) map[string][2]string {
+	from := map[string][2]string{}
+	for _, m := range pyFrom.FindAllStringSubmatch(t, -1) {
+		mod := strings.TrimLeft(m[1], ".")
+		dir := ""
+		if dots := len(m[1]) - len(mod); dots > 0 {
+			dir = path.Dir(n)
+			for range dots - 1 {
+				dir = path.Dir(dir)
+			}
+		}
+		mod = path.Join(dir, strings.ReplaceAll(mod, ".", "/"))
+		for _, name := range strings.Split(strings.Trim(m[2], "() \t\r\n"), ",") {
+			switch f := strings.Fields(name); len(f) {
+			case 1:
+				from[f[0]] = [2]string{mod, f[0]}
+			case 3:
+				from[f[2]] = [2]string{mod, f[0]}
+			}
+		}
+	}
+	return from
+}
+
+// pyRef is the router expr names in file n: a variable there, a name imported from a
+// module, or one in a module imported by name (items.router).
+func pyRef(n, expr string, from map[string][2]string, modules map[string]string) ref {
+	head, attr, dotted := strings.Cut(expr, ".")
+	imp, ok := from[head]
+	switch {
+	case !ok:
+		return ref{n, expr}
+	case dotted:
+		return ref{pyModule(path.Join(imp[0], imp[1]), modules), attr}
+	}
+	return ref{pyModule(imp[0], modules), imp[1]}
+}
+
+func pyModule(mod string, modules map[string]string) string {
+	for _, f := range []string{mod + ".py", mod + "/__init__.py"} {
+		if n, ok := modules[f]; ok {
+			return n
+		}
+	}
+	return ""
+}
+
+// goRoutes reads a Go server's routes, under the prefixes of the chi Route blocks around
+// them and of the routers they are added to: r.Route("/api", func(r chi.Router) {...}),
+// api := r.Group("/api"), r.PathPrefix("/api").Subrouter(), r.Mount("/api", api).
+func (p *project) goRoutes(n, t string) {
+	x := newPrefixes()
+	for _, m := range goGroup.FindAllStringSubmatch(t, -1) {
+		x.under[ref{n, m[1]}] = mountPoint{by: ref{n, m[2]}, prefix: strings.TrimSuffix(m[3], "/")}
+	}
+	for _, m := range goMount.FindAllStringSubmatch(t, -1) {
+		x.under[ref{n, m[3]}] = mountPoint{by: ref{n, m[1]}, prefix: strings.TrimSuffix(m[2], "/")}
+	}
+	s := scopes{t: t, blocks: map[int]string{}}
+	for _, loc := range goBlock.FindAllStringSubmatchIndex(t, -1) {
+		s.blocks[loc[1]-1] = cut(x.of(ref{n, sub(t, loc, 1)}) + strings.TrimSuffix(sub(t, loc, 2), "/"))
+	}
+	for _, loc := range goRoute.FindAllStringSubmatchIndex(t, -1) {
+		if len(p.s.Routes) > maxList {
+			return
+		}
+		s.to(loc[0])
+		method := sub(t, loc, 3)
+		if f := sub(t, loc, 2); method == "" && !strings.HasPrefix(f, "Handle") {
+			method = strings.ToUpper(f)
+		}
+		pth := strings.ReplaceAll(sub(t, loc, 4), "...}", "}")
+		if pth, ok := colonPath(join(string(s.scope)+x.of(ref{n, sub(t, loc, 1)}), pth)); ok {
+			p.route(n, method, pth)
+		}
+	}
+}
+
+// scopes walks Go code once, keeping scope: the prefixes of the Route blocks open where the
+// walk is, each from its opening brace to its closing one. Braces in strings, runes and
+// line comments don't count, and blocks deeper than maxDepth add nothing.
+type scopes struct {
+	t      string
+	blocks map[int]string // a Route block's opening brace -> its prefix
+	i      int
+	scope  []byte
+	open   []int // for each brace still open, the length of scope before it
+}
+
+func (s *scopes) to(end int) {
+	for ; s.i < end; s.i++ {
+		switch c := s.t[s.i]; c {
+		case '{':
+			s.open = append(s.open, len(s.scope))
+			if len(s.open) <= maxDepth {
+				s.scope = append(s.scope, s.blocks[s.i]...)
+			}
+		case '}':
+			if k := len(s.open) - 1; k >= 0 {
+				s.scope, s.open = s.scope[:s.open[k]], s.open[:k]
+			}
+		case '"', '\'':
+			for s.i++; s.i < len(s.t) && s.t[s.i] != c && s.t[s.i] != '\n'; s.i++ {
+				if s.t[s.i] == '\\' {
+					s.i++
+				}
+			}
+		case '`':
+			s.skipPast("`")
+		case '/':
+			if strings.HasPrefix(s.t[s.i:], "//") {
+				s.skipPast("\n")
+			}
+		}
+	}
+}
+
+// skipPast moves the walk to the next end, or to the end of the code.
+func (s *scopes) skipPast(end string) {
+	if k := strings.Index(s.t[s.i+1:], end); k >= 0 {
+		s.i += k + 1
+	} else {
+		s.i = len(s.t)
+	}
 }
 
 // page and route stop one past maxList, like add.
@@ -582,21 +804,10 @@ func (p *project) fileRoutes(n, t string) {
 	}
 }
 
-// pyRoutes reads Flask and FastAPI routes. A router's routes sit under its own prefix and
-// the one it is added with (mount).
-func (p *project) pyRoutes(n, t, mount string) {
-	prefix := map[string]string{}
-	for _, m := range pyRouter.FindAllStringSubmatch(t, -1) {
-		prefix[m[1]] = mount
-		if pm := pyPrefix.FindStringSubmatch(m[2]); pm != nil {
-			prefix[m[1]] += strings.TrimSuffix(pm[1], "/")
-		}
-	}
+// pyRoutes reads Flask and FastAPI routes, each under its router's whole prefix.
+func (p *project) pyRoutes(n, t string, x prefixes) {
 	for _, m := range pyRoute.FindAllStringSubmatch(t, -1) {
-		pth := prefix[m[1]] + m[3]
-		if prefix[m[1]] != "" && m[3] == "/" {
-			pth = prefix[m[1]]
-		}
+		pth := join(x.of(ref{n, m[1]}), m[3])
 		pth = typedParam.ReplaceAllString(flaskParam.ReplaceAllString(pth, "{$1}"), "{$1}")
 		methods := []string{strings.ToUpper(m[2])}
 		if m[2] == "route" || m[2] == "api_route" {

@@ -3,6 +3,7 @@ package kit
 import (
 	"crypto/ed25519"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 
 	"llocal.app/kit/identity"
 )
@@ -39,7 +42,14 @@ func TestApp(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.Get("/api/me", func(w http.ResponseWriter, r *http.Request) { JSON(w, http.StatusOK, CurrentUser(r)) })
+	a.Get("/api/fail", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "database is locked", http.StatusInternalServerError)
+	})
+	a.Route("/api/v1", func(r chi.Router) { r.Get("/ok", func(w http.ResponseWriter, r *http.Request) {}) })
 	a.mount()
+	var logged strings.Builder
+	log.SetOutput(&logged)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
 	if _, err := a.DB.Exec("INSERT INTO notes DEFAULT VALUES"); err != nil {
 		t.Fatalf("migration not applied: %v", err)
 	}
@@ -65,6 +75,8 @@ func TestApp(t *testing.T) {
 		{"/api/me", token("notes.acme.llocal.app"), 200, `"id":"u_1"`},
 		{"/api/me", token("payroll.acme.llocal.app"), 401, "identity: token is for"},
 		{"/api/missing", "", 404, "not found"},
+		{"/api/v1/missing", "", 404, "not found"},
+		{"/api/fail", "", 500, "database is locked"},
 		{"/app.js", "", 200, "app()"},
 		{"/", "", 200, "<p>index</p>"},
 		{"/notes/7", "", 200, "<p>index</p>"},
@@ -79,6 +91,12 @@ func TestApp(t *testing.T) {
 		if w.Code != tc.status || !strings.Contains(string(body), tc.body) {
 			t.Errorf("GET %s: %d %q, want %d with %q", tc.path, w.Code, body, tc.status, tc.body)
 		}
+		if none := w.Header().Get("X-LLocal-Route") == "none"; none != strings.HasSuffix(tc.path, "/missing") {
+			t.Errorf("GET %s: X-LLocal-Route none is %v", tc.path, none)
+		}
+	}
+	if strings.Count(logged.String(), "answered") != 1 || !strings.HasSuffix(logged.String(), "GET /api/fail answered 500: database is locked\n") {
+		t.Errorf("logged %q, want only the failure", logged.String())
 	}
 }
 

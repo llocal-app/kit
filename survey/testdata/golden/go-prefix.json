@@ -1,0 +1,90 @@
+{
+  "plan": {
+    "shape": "kept",
+    "why": "Its server is already written in Go, so it stays as it is and only the data moves.",
+    "found": [
+      "An app with its own Go server.",
+      "6 server routes, like GET /admin/users, GET /api/v1/parts, POST /api/v1/parts and 3 more."
+    ],
+    "left": [
+      {
+        "kind": "recipe",
+        "text": "It has no llocal.json yet: the short file that tells llocal how to build and start it."
+      }
+    ],
+    "changes": [
+      {
+        "text": "Its own Go server stays.",
+        "detail": "Its server is already written in Go, so it stays as it is and only the data moves."
+      }
+    ],
+    "dropped": [
+      "PORT"
+    ]
+  },
+  "survey": {
+    "languages": [
+      "go"
+    ],
+    "frameworks": [
+      "go"
+    ],
+    "servers": [
+      {
+        "dir": ".",
+        "framework": "go",
+        "files": 1,
+        "bytes": 901
+      }
+    ],
+    "pages": [],
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/admin/users",
+        "file": "main.go"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/parts",
+        "file": "main.go"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/parts",
+        "file": "main.go"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/v1/parts/{id}",
+        "file": "main.go"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/parts/{id}",
+        "file": "main.go"
+      },
+      {
+        "method": "GET",
+        "path": "/healthz",
+        "file": "main.go"
+      }
+    ],
+    "data_stores": [],
+    "env": [
+      {
+        "name": "PORT",
+        "files": [
+          "main.go"
+        ],
+        "service": "platform"
+      }
+    ],
+    "packages": [
+      {
+        "name": "github.com/go-chi/chi/v5",
+        "manifest": "go.mod"
+      }
+    ]
+  }
+}

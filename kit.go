@@ -109,8 +109,36 @@ func open() (*App, error) {
 		keys:     keys,
 		audience: u.Hostname(),
 	}
-	a.Use(middleware.Recoverer, a.identify)
+	a.Use(middleware.Recoverer, logErrors, a.identify)
 	return a, nil
+}
+
+// logErrors logs each answer of 500 or more with the first line the route wrote, so a
+// failure shows in the app's log and not only in its reply.
+func logErrors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+		h := &head{w: ww}
+		ww.Tee(h)
+		next.ServeHTTP(ww, r)
+		if ww.Status() >= http.StatusInternalServerError {
+			line, _, _ := strings.Cut(string(h.b), "\n")
+			log.Printf("%s %s answered %d: %s", r.Method, r.URL.Path, ww.Status(), line)
+		}
+	})
+}
+
+// head keeps the first 200 bytes of an answer of 500 or more.
+type head struct {
+	w middleware.WrapResponseWriter
+	b []byte
+}
+
+func (h *head) Write(p []byte) (int, error) {
+	if h.w.Status() >= http.StatusInternalServerError {
+		h.b = append(h.b, p[:min(len(p), max(0, 200-len(h.b)))]...)
+	}
+	return len(p), nil
 }
 
 // Run adds /healthz and the front end after the app's own routes, then serves until
@@ -136,6 +164,7 @@ func (a *App) Run() {
 }
 
 func (a *App) mount() {
+	a.NotFound(noRoute)
 	a.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if err := a.DB.PingContext(r.Context()); err != nil {
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -177,6 +206,13 @@ func (a *App) identify(next http.Handler) http.Handler {
 	})
 }
 
+// noRoute is the 404 where the app has no route, which says so, so llocal's checker can
+// tell it from a route's own 404 for a record that isn't there.
+func noRoute(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-LLocal-Route", "none")
+	http.NotFound(w, r)
+}
+
 // spa serves the front end, and index.html for any path that is not a file so the
 // front end's router can take it. Unmatched /api/ paths stay 404s.
 func spa(dir string) http.HandlerFunc {
@@ -184,7 +220,7 @@ func spa(dir string) http.HandlerFunc {
 	files := http.FileServerFS(fsys)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
-			http.NotFound(w, r)
+			noRoute(w, r)
 			return
 		}
 		if fi, err := fs.Stat(fsys, strings.TrimPrefix(path.Clean(r.URL.Path), "/")); err != nil || fi.IsDir() {
