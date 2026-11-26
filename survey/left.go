@@ -49,7 +49,7 @@ func (p *Plan) left(s Survey) {
 	if l := s.Login; l != nil && hostLogins[l.Provider] != "" {
 		put("login", "It signs people in with %s, which works only while %s runs the app. llocal's sign-in takes its place.", loginLabels[l.Provider], hostLogins[l.Provider])
 	} else if l != nil {
-		put("login", "It has its own login (%s), which goes: llocal signs people in with their work account.", loginLabels[l.Provider])
+		put("login", "It has its own login (%s), which goes: llocal's sign-in takes its place.", loginLabels[l.Provider])
 	}
 	for _, d := range s.DataStores {
 		switch {

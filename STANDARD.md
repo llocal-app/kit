@@ -216,6 +216,10 @@ which page. The app never sees a password.
 - **The front end:** `GET /_llocal/me` answers
   `{"id", "email", "name", "groups", "company", "guest"}`. "Sign out" is a link to
   `/_llocal/logout`.
+- `company` is the id of the company the app belongs to, or of the personal space it was
+  made in. `guest` is true for anyone who isn't one of its people: at a company, someone
+  from outside it; in a personal space, anyone but its owners. When anyone can sign up to
+  the app, everyone who does is a guest.
 
 ### People and their old accounts
 

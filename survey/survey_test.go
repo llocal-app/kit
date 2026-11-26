@@ -208,6 +208,24 @@ const signing = "-----BEGIN RSA PRIVATE KEY-----"`,
 	}
 }
 
+// TestEnvSecrets: secrets written out in .env files get one warning, but those of a template
+// and those in the pages, which have their own.
+func TestEnvSecrets(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, map[string]string{
+		"package.json": `{"dependencies": {"express": "5"}}`,
+		".env":         "STRIPE_SECRET_KEY=sk_live_FAKEFAKEFAKE\nVITE_OPENAI_KEY=sk-FAKEFAKEFAKEFAKEFAKE\nPORT=3000\n",
+		".env.local":   "JWT_SECRET=correct-horse\n",
+		".env.example": "DATABASE_SECRET=change-me\n",
+		"server.js":    "process.env.STRIPE_SECRET_KEY; process.env.JWT_SECRET; process.env.DATABASE_SECRET",
+	})
+	want := ".env.local and .env hold 2 secrets written out in full: JWT_SECRET and STRIPE_SECRET_KEY. Anyone with a copy of the project can use them. " +
+		"llocal leaves .env.local and .env out of the app's code; if the project was ever shared or pushed to GitHub, make new ones at the service and stop using these."
+	if p := run(t, dir).Plan("", ""); !slices.Contains(p.Warnings, want) {
+		t.Errorf("warnings %q, want %q", p.Warnings, want)
+	}
+}
+
 // TestAlreadyFits: an app already on the kit, with llocal.json, has nothing to convert: the
 // starter, once a builder has made it a module.
 func TestAlreadyFits(t *testing.T) {

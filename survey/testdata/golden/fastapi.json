@@ -62,7 +62,7 @@
         "setting": "OPENAI_API_KEY"
       },
       {
-        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+        "text": "So llocal can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
       }
     ],
     "settings": [

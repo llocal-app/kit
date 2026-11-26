@@ -16,7 +16,7 @@
     "left": [
       {
         "kind": "login",
-        "text": "It has its own login (Better Auth), which goes: llocal signs people in with their work account."
+        "text": "It has its own login (Better Auth), which goes: llocal's sign-in takes its place."
       },
       {
         "kind": "database",
@@ -42,7 +42,7 @@
       },
       {
         "text": "The app's own login goes, and llocal signs people in.",
-        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in user stays, so everyone keeps their own records."
+        "detail": "People sign in with llocal, and nobody keeps another password. You choose who can open the app. The list of people in user stays, so everyone keeps their own records."
       },
       {
         "text": "Its own Next.js server stays.",
@@ -77,7 +77,7 @@
         "setting": "AI_GATEWAY_API_KEY"
       },
       {
-        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+        "text": "So llocal can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
       }
     ],
     "settings": [

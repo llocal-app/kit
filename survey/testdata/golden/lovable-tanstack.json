@@ -15,7 +15,7 @@
     "left": [
       {
         "kind": "login",
-        "text": "It has its own login (Lovable Cloud's sign-in), which goes: llocal signs people in with their work account."
+        "text": "It has its own login (Lovable Cloud's sign-in), which goes: llocal's sign-in takes its place."
       },
       {
         "kind": "database",
@@ -53,7 +53,7 @@
       },
       {
         "text": "The app's own login goes, and llocal signs people in.",
-        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in auth.users stays, so everyone keeps their own records."
+        "detail": "People sign in with llocal, and nobody keeps another password. You choose who can open the app. The list of people in auth.users stays, so everyone keeps their own records."
       },
       {
         "text": "The pages are built once into plain files, and its server routes and functions are rewritten in Go, at the same addresses.",
@@ -84,7 +84,7 @@
         "setting": "STRIPE_WEBHOOK_SECRET"
       },
       {
-        "text": "So we can copy your data once: a key that can read every table of your Supabase project (qrstuvwxyzabcdefghij.supabase.co). The service_role key (Supabase \u003e Project Settings \u003e API Keys) or the database password will do. It is used for the copy, then thrown away."
+        "text": "So llocal can copy your data once: a key that can read every table of your Supabase project (qrstuvwxyzabcdefghij.supabase.co). The service_role key (Supabase \u003e Project Settings \u003e API Keys) or the database password will do. It is used for the copy, then thrown away."
       }
     ],
     "settings": [

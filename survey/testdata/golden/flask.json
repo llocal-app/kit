@@ -13,7 +13,7 @@
     "left": [
       {
         "kind": "login",
-        "text": "It has its own login (email and password, checked by the app itself), which goes: llocal signs people in with their work account."
+        "text": "It has its own login (email and password, checked by the app itself), which goes: llocal's sign-in takes its place."
       },
       {
         "kind": "database",
@@ -35,7 +35,7 @@
       },
       {
         "text": "The app's own login goes, and llocal signs people in.",
-        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in user stays, so everyone keeps their own records."
+        "detail": "People sign in with llocal, and nobody keeps another password. You choose who can open the app. The list of people in user stays, so everyone keeps their own records."
       },
       {
         "text": "Its own Flask server stays.",
@@ -54,16 +54,19 @@
     ],
     "needs": [
       {
-        "text": "The value of SECRET_KEY. We found one in the upload; check it is the one to use.",
+        "text": "The value of SECRET_KEY. One is in the upload; check it is the one to use.",
         "setting": "SECRET_KEY"
       },
       {
-        "text": "Your SendGrid key, saved as SENDGRID_API_KEY. We found one in the upload; check it is the one to use.",
+        "text": "Your SendGrid key, saved as SENDGRID_API_KEY. One is in the upload; check it is the one to use.",
         "setting": "SENDGRID_API_KEY"
       },
       {
-        "text": "So we can copy your data once: the full address of your PostgreSQL database (pg-workorders.postgres.database.azure.com:5432), like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+        "text": "So llocal can copy your data once: the full address of your PostgreSQL database (pg-workorders.postgres.database.azure.com:5432), like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
       }
+    ],
+    "warnings": [
+      ".env holds a secret, SECRET_KEY, written out in full. Anyone with a copy of the project can use it. llocal leaves .env out of the app's code; if the project was ever shared or pushed to GitHub, make a new one at the service and stop using this one."
     ],
     "settings": [
       {

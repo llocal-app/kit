@@ -34,7 +34,7 @@
       },
       {
         "text": "The app's own login goes, and llocal signs people in.",
-        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in users stays, so everyone keeps their own records."
+        "detail": "People sign in with llocal, and nobody keeps another password. You choose who can open the app. The list of people in users stays, so everyone keeps their own records."
       },
       {
         "text": "The Express server is rewritten in Go on llocal's kit, answering at the same addresses.",
@@ -43,7 +43,7 @@
     ],
     "needs": [
       {
-        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+        "text": "So llocal can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
       }
     ],
     "blockers": [
@@ -51,7 +51,7 @@
         "case": "host_login",
         "title": "Its login only works on Replit",
         "detail": "The app signs people in with Replit's own login, which works only while Replit runs the app.",
-        "way_out": "llocal's sign-in takes its place when the app is converted, so people sign in with their work account. Until then the app cannot go live as it is."
+        "way_out": "llocal's sign-in takes its place when the app is converted, so people sign in with llocal. Until then the app cannot go live as it is."
       }
     ],
     "dropped": [

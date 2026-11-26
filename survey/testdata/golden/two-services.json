@@ -41,8 +41,8 @@
       {
         "case": "two_services",
         "title": "This folder holds more than one app",
-        "detail": "We found 2 servers: Express in api and FastAPI in pricer. llocal runs one server for each app.",
-        "way_out": "Upload each one as its own app, or tell us which one this is. If they work together, llocal can merge them into one server when it converts the app."
+        "detail": "It holds 2 servers: Express in api and FastAPI in pricer. llocal runs one server for each app.",
+        "way_out": "Upload each one as its own app, or tell llocal which one this is. If they work together, llocal can merge them into one server when it converts the app."
       }
     ],
     "settings": [

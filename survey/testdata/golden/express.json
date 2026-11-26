@@ -15,7 +15,7 @@
     "left": [
       {
         "kind": "login",
-        "text": "It has its own login (email and password, checked by the app itself), which goes: llocal signs people in with their work account."
+        "text": "It has its own login (email and password, checked by the app itself), which goes: llocal's sign-in takes its place."
       },
       {
         "kind": "database",
@@ -49,7 +49,7 @@
       },
       {
         "text": "The app's own login goes, and llocal signs people in.",
-        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it. The list of people in users stays, so everyone keeps their own records."
+        "detail": "People sign in with llocal, and nobody keeps another password. You choose who can open the app. The list of people in users stays, so everyone keeps their own records."
       },
       {
         "text": "The Express server is rewritten in Go on llocal's kit, answering at the same addresses.",
@@ -96,7 +96,7 @@
         "setting": "TWILIO_FROM"
       },
       {
-        "text": "The PostgreSQL database's address in the code, localhost:5432, points at your own computer. If the real data is there, export it to a file (a backup, or a spreadsheet per table) and add it to the upload. If it lives somewhere else, give us that address and a user that can read every table."
+        "text": "The PostgreSQL database's address in the code, localhost:5432, points at your own computer. If the real data is there, export it to a file (a backup, or a spreadsheet per table) and add it to the upload. If it lives somewhere else, give llocal that address and a user that can read every table."
       }
     ],
     "settings": [

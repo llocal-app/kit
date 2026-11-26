@@ -43,18 +43,18 @@
     ],
     "needs": [
       {
-        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+        "text": "So llocal can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
       },
       {
-        "text": "So we can copy your data once: the full address of your Redis database, like the one in REDIS_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+        "text": "So llocal can copy your data once: the full address of your Redis database, like the one in REDIS_URL, with a user that can read all of it. It is used for the copy, then thrown away."
       }
     ],
     "blockers": [
       {
         "case": "container",
         "title": "It comes with Docker files",
-        "detail": "We found Dockerfile and docker-compose.yml. llocal does not run Docker: it builds the app from its own code, in llocal's standard setup for Node, Python or Go. Dockerfile installs wkhtmltopdf, which the app may need. docker-compose.yml starts 3 services: web, db and cache.",
-        "way_out": "If they only install and start the app, there is nothing to do: llocal leaves them out. A database in them becomes SQLite on llocal. If the app needs other programs installed, or another service from them, tell us which, or upload that service as its own app."
+        "detail": "It has Dockerfile and docker-compose.yml. llocal does not run Docker: it builds the app from its own code, in llocal's standard setup for Node, Python or Go. Dockerfile installs wkhtmltopdf, which the app may need. docker-compose.yml starts 3 services: web, db and cache.",
+        "way_out": "If they only install and start the app, there is nothing to do: llocal leaves them out. A database in them becomes SQLite on llocal. If the app needs other programs installed, or another service from them, tell llocal which, or upload that service as its own app."
       }
     ],
     "dropped": [

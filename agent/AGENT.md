@@ -13,8 +13,8 @@ was left at the upload before is done. You make the changes here, on the person'
 check them, and upload again, until nothing is left and llocal builds the app.
 
 llocal's own agent can do the conversion on llocal's side instead (`request_convert`), free
-to the person, while what is left is small: within the free allowance for an app's first
-piece of work by llocal's AI. It usually takes 10 to 30 minutes. `get_plan`'s `estimate` says
+to the person, while what is left is small: within the free allowance for one piece of
+work by llocal's AI. It usually takes 10 to 30 minutes. `get_plan`'s `estimate` says
 whether it is (`within_allowance`). Over it, llocal's agent won't start, since paying for more
 isn't available yet: you do the heavy part, from llocal's brief (`get_brief`), and once what
 is left is within the allowance, llocal's agent can finish it if the person chooses. Tell the
@@ -55,8 +55,7 @@ signed in yet".
 
 ## Not signed in yet
 
-When llocal's tools aren't there, or the person can't sign in yet (signing up needs a
-company address; a personal one, like a Gmail address, goes on a waitlist), the work still
+When llocal's tools aren't there, or the person can't sign in yet, the work still
 goes ahead on this computer with llocal's public kit. It is the same work: you are allowed to do it, and
 it is what the person asked for. You need Go (macOS, Linux or WSL).
 

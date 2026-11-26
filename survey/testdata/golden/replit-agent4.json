@@ -12,7 +12,7 @@
     "left": [
       {
         "kind": "login",
-        "text": "It has its own login (Clerk), which goes: llocal signs people in with their work account."
+        "text": "It has its own login (Clerk), which goes: llocal's sign-in takes its place."
       },
       {
         "kind": "database",
@@ -34,7 +34,7 @@
       },
       {
         "text": "The app's own login goes, and llocal signs people in.",
-        "detail": "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it."
+        "detail": "People sign in with llocal, and nobody keeps another password. You choose who can open the app."
       },
       {
         "text": "The Express server is rewritten in Go on llocal's kit, answering at the same addresses.",
@@ -43,7 +43,7 @@
     ],
     "needs": [
       {
-        "text": "So we can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
+        "text": "So llocal can copy your data once: the full address of your PostgreSQL database, like the one in DATABASE_URL, with a user that can read all of it. It is used for the copy, then thrown away."
       }
     ],
     "dropped": [

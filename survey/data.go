@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"net"
+	"net/netip"
 	"path"
 	"slices"
 	"strings"
@@ -961,15 +961,21 @@ func (p *project) private() {
 // network.
 func privateHost(h string) bool {
 	h = strings.ToLower(h)
-	if ip := net.ParseIP(h); ip != nil {
+	if ip, ok := parseIP(h); ok {
 		return ip.IsLoopback() || ip.IsPrivate()
 	}
 	return loopback(h) || slices.ContainsFunc(privateTLD, func(s string) bool { return strings.HasSuffix(h, s) })
 }
 
 func loopback(h string) bool {
-	ip := net.ParseIP(h)
-	return strings.EqualFold(h, "localhost") || ip != nil && ip.IsLoopback()
+	ip, ok := parseIP(h)
+	return strings.EqualFold(h, "localhost") || ok && ip.IsLoopback()
+}
+
+// parseIP reads an address as net.ParseIP does, refusing a zone, without the net package.
+func parseIP(h string) (netip.Addr, bool) {
+	ip, err := netip.ParseAddr(h)
+	return ip, err == nil && ip.Zone() == ""
 }
 
 var (

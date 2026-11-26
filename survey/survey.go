@@ -223,7 +223,13 @@ func Run(dir string) (Survey, error) {
 		return Survey{}, err
 	}
 	defer root.Close()
-	p := &project{fsys: root.FS(), text: map[string]string{}}
+	return RunFS(root.FS())
+}
+
+// RunFS surveys the project in fsys. It must list every file with its true size, since some
+// rules count files the survey never reads.
+func RunFS(fsys fs.FS) (Survey, error) {
+	p := &project{fsys: fsys, text: map[string]string{}}
 	if err := p.load(); err != nil {
 		return Survey{}, err
 	}
@@ -262,6 +268,10 @@ func (p *project) load() error {
 	}
 	return err
 }
+
+// Wants says whether the survey reads the file at name, of size bytes: what a caller that
+// has to fetch each file before RunFS needs to fetch.
+func Wants(name string, size int64) bool { return size <= maxFileBytes && wanted(name) }
 
 func wanted(name string) bool {
 	base := path.Base(name)

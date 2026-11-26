@@ -200,7 +200,7 @@ func (s Survey) serverList() string {
 
 func (s Survey) found() []string {
 	var f []string
-	what := "A project we could not identify"
+	what := "A project llocal could not identify"
 	front := ""
 	if i := slices.IndexFunc(frontFrameworks, s.fw); i >= 0 {
 		front = frameworkLabels[frontFrameworks[i]]
@@ -291,7 +291,7 @@ func (s Survey) found() []string {
 		})+".")
 	}
 	if s.Incomplete != "" {
-		f = append(f, "The project is large, so we read only part of it: "+s.Incomplete+".")
+		f = append(f, "The project is large, so llocal read only part of it: "+s.Incomplete+".")
 	}
 	return f
 }
@@ -336,7 +336,7 @@ func (p *Plan) changes(s Survey) {
 		})
 	}
 	if s.Login != nil {
-		detail := "People use their work account and nobody keeps another password. You choose who can open the app, and IT can see it."
+		detail := "People sign in with llocal, and nobody keeps another password. You choose who can open the app."
 		if s.Login.UserTable != "" {
 			detail += fmt.Sprintf(" The list of people in %s stays, so everyone keeps their own records.", s.Login.UserTable)
 		}
@@ -452,7 +452,7 @@ func (p *Plan) needs(s Survey) {
 			text += " (public: it is part of the pages)"
 		}
 		if slices.ContainsFunc(s.Env, func(e Env) bool { return e.Name == st.Name && e.Set }) {
-			text += ". We found one in the upload; check it is the one to use"
+			text += ". One is in the upload; check it is the one to use"
 		}
 		p.Needs = append(p.Needs, Need{Text: text + ".", Setting: st.Name})
 	}
@@ -475,15 +475,15 @@ func (p *Plan) needs(s Survey) {
 		case loopback(host):
 			text = fmt.Sprintf("The %s database's address in the code, %s, points at your own computer. If the real data is there, "+
 				"export it to a file (a backup, or a spreadsheet per table) and add it to the upload. If it lives somewhere else, "+
-				"give us that address and a user that can read every table.", name, d.Host)
+				"give llocal that address and a user that can read every table.", name, d.Host)
 		case d.Kind == "supabase":
-			text = fmt.Sprintf("So we can copy your data once: a key that can read every table of your Supabase project%s. "+
+			text = fmt.Sprintf("So llocal can copy your data once: a key that can read every table of your Supabase project%s. "+
 				"The service_role key (Supabase > Project Settings > API Keys) or the database password will do. It is used for the copy, then thrown away.", at)
 		case d.Kind == "firebase":
-			text = fmt.Sprintf("So we can copy your data once: a service account key for your Firebase project%s "+
+			text = fmt.Sprintf("So llocal can copy your data once: a service account key for your Firebase project%s "+
 				"(Firebase console > Project settings > Service accounts > Generate new private key). It is used for the copy, then thrown away.", at)
 		default:
-			text = fmt.Sprintf("So we can copy your data once: the full address of your %s database%s%s, "+
+			text = fmt.Sprintf("So llocal can copy your data once: the full address of your %s database%s%s, "+
 				"with a user that can read all of it. It is used for the copy, then thrown away.", name, at, like)
 		}
 		p.Needs = append(p.Needs, Need{Text: text})
@@ -493,11 +493,11 @@ func (p *Plan) needs(s Survey) {
 func (p *Plan) blockers(s Survey, ip string) {
 	if len(s.Servers) > 1 {
 		p.Blockers = append(p.Blockers, Blocker{"two_services", "This folder holds more than one app",
-			fmt.Sprintf("We found %s. llocal runs one server for each app.", s.serverList()),
-			"Upload each one as its own app, or tell us which one this is. If they work together, llocal can merge them into one server when it converts the app."})
+			fmt.Sprintf("It holds %s. llocal runs one server for each app.", s.serverList()),
+			"Upload each one as its own app, or tell llocal which one this is. If they work together, llocal can merge them into one server when it converts the app."})
 	}
 	if len(s.Containers) > 0 {
-		detail := fmt.Sprintf("We found %s. llocal does not run Docker: it builds the app from its own code, in llocal's standard setup for Node, Python or Go.",
+		detail := fmt.Sprintf("It has %s. llocal does not run Docker: it builds the app from its own code, in llocal's standard setup for Node, Python or Go.",
 			list(s.Containers, 4, func(c Container) string { return c.File }))
 		for _, c := range s.Containers {
 			if len(c.Installs) > 0 {
@@ -509,7 +509,7 @@ func (p *Plan) blockers(s Survey, ip string) {
 		}
 		p.Blockers = append(p.Blockers, Blocker{"container", "It comes with Docker files", detail,
 			"If they only install and start the app, there is nothing to do: llocal leaves them out. A database in them becomes SQLite on llocal. " +
-				"If the app needs other programs installed, or another service from them, tell us which, or upload that service as its own app."})
+				"If the app needs other programs installed, or another service from them, tell llocal which, or upload that service as its own app."})
 	}
 	for _, d := range s.DataStores {
 		if privateStore(d) {
@@ -530,10 +530,10 @@ func (p *Plan) blockers(s Survey, ip string) {
 		host := hostLogins[l.Provider]
 		p.Blockers = append(p.Blockers, Blocker{"host_login", "Its login only works on " + host,
 			fmt.Sprintf("The app signs people in with %s, which works only while %s runs the app.", loginLabels[l.Provider], host),
-			"llocal's sign-in takes its place when the app is converted, so people sign in with their work account. Until then the app cannot go live as it is."})
+			"llocal's sign-in takes its place when the app is converted, so people sign in with llocal. Until then the app cannot go live as it is."})
 	}
 	if len(s.Frameworks) == 0 && len(s.Pages) == 0 {
-		p.Blockers = append(p.Blockers, Blocker{"unknown", "We could not tell what this app is",
+		p.Blockers = append(p.Blockers, Blocker{"unknown", "llocal could not tell what this app is",
 			"There is no package.json, requirements file or web page in the folder.",
 			"Check that the folder holds the app's own files, not a shortcut or a download page. Or paste the line for your AI agent, which can get the app ready."})
 	}
@@ -559,6 +559,37 @@ func (p *Plan) warnings(s Survey) {
 	if lan := s.lan(); len(lan) > 0 {
 		p.Warnings = append(p.Warnings, fmt.Sprintf("It calls addresses on a private network that llocal cannot reach: %s. Those parts will not work on llocal.", joinAnd(lan)))
 	}
+	if w := s.envSecrets(); w != "" {
+		p.Warnings = append(p.Warnings, w)
+	}
+}
+
+// envSecrets warns of the secrets a .env file holds in full, but those in the pages, which
+// have a warning of their own.
+func (s Survey) envSecrets() string {
+	var names, files []string
+	for _, e := range s.Env {
+		if e.Set && Secret(e.Looks) && !e.Browser {
+			names = append(names, e.Name)
+			for _, f := range e.Files {
+				if IsEnvFile(f) && !isTemplate(f) {
+					files = add(files, f)
+				}
+			}
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	holds, what, it, renew := "holds", fmt.Sprintf("a secret, %s, written out in full", names[0]), "it", "a new one at the service and stop using this one"
+	if len(files) > 1 {
+		holds = "hold"
+	}
+	if len(names) > 1 {
+		what, it, renew = fmt.Sprintf("%s written out in full: %s", count(len(names), "secret"), joinAnd(names)), "them", "new ones at the service and stop using these"
+	}
+	return fmt.Sprintf("%s %s %s. Anyone with a copy of the project can use %s. llocal leaves %s out of the app's code; "+
+		"if the project was ever shared or pushed to GitHub, make %s.", joinAnd(files), holds, what, it, joinAnd(files), renew)
 }
 
 // lan are the addresses on a private network the app calls, but its databases'.

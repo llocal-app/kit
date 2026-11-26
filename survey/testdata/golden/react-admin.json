@@ -41,7 +41,7 @@
     ],
     "needs": [
       {
-        "text": "So we can copy your data once: a key that can read every table of your Supabase project. The service_role key (Supabase \u003e Project Settings \u003e API Keys) or the database password will do. It is used for the copy, then thrown away."
+        "text": "So llocal can copy your data once: a key that can read every table of your Supabase project. The service_role key (Supabase \u003e Project Settings \u003e API Keys) or the database password will do. It is used for the copy, then thrown away."
       }
     ],
     "dropped": [
